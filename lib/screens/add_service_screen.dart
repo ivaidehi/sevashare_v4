@@ -2,10 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // 📌 Added Firestore
 import 'package:sevashare_v4/styles/appstyles.dart';
-import '../custom_widgets/custom_appbar.dart';
+
 import '../custom_widgets/custom_inputfield.dart';
 import '../services/firebase_service.dart';
-import '../services/service_firestore.dart';
 
 class AddServiceScreen extends StatefulWidget {
   const AddServiceScreen({super.key});
@@ -194,7 +193,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // SECTION A: Personal Details
-              _buildSectionHeader('A) Personal Details'),
+              _buildSectionHeader('> Personal Details'),
 
               // profile photo
               // Center(
@@ -297,7 +296,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
               const Divider(height: 40, thickness: 1),
 
               // SECTION B: Service Details
-              _buildSectionHeader('B) Service Details'),
+              _buildSectionHeader('> Service Details'),
 
               CustomInputField(
                 controller: _professionController,
@@ -348,7 +347,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
               const Divider(height: 40, thickness: 1),
 
               // SECTION C: KYC Identity Verification
-              _buildSectionHeader('C) KYC Identity Verification'),
+              _buildSectionHeader('> KYC Identity Verification'),
 
               Container(
                 width: double.infinity,

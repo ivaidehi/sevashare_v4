@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sevashare_v4/providers/user_provider.dart';
@@ -7,6 +5,7 @@ import 'package:sevashare_v4/screens/add_rentals_screen.dart';
 import 'package:sevashare_v4/screens/add_service_screen.dart';
 
 import '../services/auth_service.dart';
+import '../services/location_service.dart';
 import '../styles/appstyles.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,6 +19,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 1. Create an instance of your AuthService at the top of your State class
   final AuthService _authService = AuthService();
   late final userProvider = context.watch<UserProvider>();
+
+  String _locationAddress = 'Detect Location';
+  bool _isLoadingLocation = false;
 
 
   // State variables
@@ -298,14 +300,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                       ),
 
-                      _buildProfileItem(
-                        icon: Icons.location_on_outlined,
-                        title: 'San Francisco, CA',
-                        suffixIcon: Icons.my_location,
-                        onTap: () {
-                          // Navigate to add rental item settings
-                        },
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: AppStyles.secondaryColor),
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            onPressed: _isLoadingLocation
+                                ? null
+                                : () async {
+                              setState(() => _isLoadingLocation = true);
+                              String? address = await LocationService.getUserAddress();
+                              setState(() {
+                                _locationAddress = address ?? 'Could not detect location';
+                                _isLoadingLocation = false;
+                              });
+                            },
+                            child: Row(
+                              // mainAxisAlignment: MainAxisAlignment.center, // Centers the group
+                              mainAxisSize: MainAxisSize.min,            // Pulls icon and text together
+                              children: [
+                                Icon(
+                                  (_locationAddress == 'Detect Location' || _isLoadingLocation)
+                                      ? Icons.my_location_outlined
+                                      : Icons.location_on_outlined, // Swapped to filled icon for better 'detected' visual
+                                  color: AppStyles.secondaryColor,
+                                  size: 25,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _isLoadingLocation ? 'Detecting...' : _locationAddress,
+                                    textAlign: TextAlign.left,
+                                    style: TextStyle(
+                                      color: AppStyles.primaryColor,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
+
+                      // _buildProfileItem(
+                      //   icon: Icons.location_on_outlined,
+                      //   title: _isLoadingLocation ? 'Detecting...' : _locationAddress, // Update UI dynamically
+                      //   suffixIcon: Icons.my_location,
+                      //   onTap: () async {
+                      //     // 1. Set loading state
+                      //     setState(() {
+                      //       _isLoadingLocation = true;
+                      //     });
+                      //
+                      //     // 2. Call our new service
+                      //     String? address = await LocationService.getUserAddress();
+                      //
+                      //     // 3. Update the UI with the result
+                      //     setState(() {
+                      //       _locationAddress = address ?? 'Could not detect location';
+                      //       _isLoadingLocation = false;
+                      //     });
+                      //   },
+                      // )
                     ],
                   ),
                 ),

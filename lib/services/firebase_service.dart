@@ -37,9 +37,9 @@ class StoreAllRentalsInfo {
   // Function to save form data to Firestore
   Future<bool> saveRentalsDetails(Map<String, dynamic> rentalsData) async {
     try {
-      // Storing data in a collection named 'service_providers'
+      String uid = FirebaseAuth.instance.currentUser!.uid;
       // It auto-generates a unique Document ID for this entry
-      await _db.collection('rentals').add(rentalsData);
+      await _db.collection('rentals').doc(uid).set(rentalsData);
       return true;
     } catch (e) {
       // Log the error for debugging

@@ -32,8 +32,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
   final TextEditingController _purchaseYearController = TextEditingController();
   final TextEditingController _rentPerHourController = TextEditingController();
   final TextEditingController _rentPerDayController = TextEditingController();
-  final TextEditingController _securityDepositController = TextEditingController();
-  final TextEditingController _deliveryChargeController = TextEditingController();
+  final TextEditingController _securityDepositController =
+      TextEditingController();
+  final TextEditingController _deliveryChargeController =
+      TextEditingController();
 
   // --- Section 2: Ownership Details Controllers ---
   final TextEditingController _ownerNameController = TextEditingController();
@@ -69,25 +71,37 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
     super.dispose();
   }
 
-  // Invoice Upload Variables
-  File? _invoiceBillImg;
-  File? _rentalItemImg;
+  // --- Variables ---
+  File? _invoiceBillImg; // For the single invoice
+  List<File> _rentalItemImages = []; // For the gallery
   final ImagePicker _picker = ImagePicker();
 
-  // Function to pick the invoice image
-  Future<void> _selectImage() async {
+  // --- Shared Function ---
+  Future<void> _selectImage({required bool isMultiple}) async {
     try {
-      // ImagePicker handles the basic "Ask" on many devices automatically
-      final XFile? selectImage = await _picker.pickImage(
-        source: ImageSource.gallery,
-      );
-
-      if (selectImage != null) {
-        setState(() => _invoiceBillImg = File(selectImage.path), );
-        setState(() => _rentalItemImg = File(selectImage.path));
+      if (isMultiple) {
+        // Logic for Multiple Images (Rental Items)
+        final List<XFile> selectedImages = await _picker.pickMultiImage();
+        if (selectedImages.isNotEmpty) {
+          setState(() {
+            _rentalItemImages.addAll(
+              selectedImages.map((xFile) => File(xFile.path)).toList(),
+            );
+          });
+        }
+      } else {
+        // Logic for Single Image (Invoice)
+        final XFile? selectedImage = await _picker.pickImage(
+          source: ImageSource.gallery,
+        );
+        if (selectedImage != null) {
+          setState(() {
+            _invoiceBillImg = File(selectedImage.path);
+          });
+        }
       }
     } catch (e) {
-      _showSnackBar("Error picking image: $e", isError: true);
+      _showSnackBar("Error picking images: $e", isError: true);
     }
   }
 
@@ -126,9 +140,11 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-
       if (_contactNoController.text.trim().length != 10) {
-        _showSnackBar('Please enter a valid 10-digit contact number.', isError: true);
+        _showSnackBar(
+          'Please enter a valid 10-digit contact number.',
+          isError: true,
+        );
         return;
       }
       if (_pincodeController.text.trim().length != 6) {
@@ -141,7 +157,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
       final User? currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
         setState(() => _isLoading = false);
-        _showSnackBar('Error: You must be logged in to add a rental item.', isError: true);
+        _showSnackBar(
+          'Error: You must be logged in to add a rental item.',
+          isError: true,
+        );
         return;
       }
 
@@ -161,9 +180,12 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         'description': _descController.text.trim(),
         'purchase_year': int.tryParse(_purchaseYearController.text.trim()) ?? 0,
         // Pricing
-        'rent_per_hour': double.tryParse(_rentPerHourController.text.trim()) ?? 0.0,
-        'rent_per_day': double.tryParse(_rentPerDayController.text.trim()) ?? 0.0,
-        'security_deposit': double.tryParse(_securityDepositController.text.trim()) ?? 0.0,
+        'rent_per_hour':
+            double.tryParse(_rentPerHourController.text.trim()) ?? 0.0,
+        'rent_per_day':
+            double.tryParse(_rentPerDayController.text.trim()) ?? 0.0,
+        'security_deposit':
+            double.tryParse(_securityDepositController.text.trim()) ?? 0.0,
         'offer_delivery': _offerDelivery,
         'delivery_charge': _offerDelivery
             ? (double.tryParse(_deliveryChargeController.text.trim()) ?? 0.0)
@@ -184,7 +206,9 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
       };
 
       // Ensure you add a method called `saveRentalDetails` in your service file!
-      final bool success = await _firestoreService.saveRentalsDetails(rentalData);
+      final bool success = await _firestoreService.saveRentalsDetails(
+        rentalData,
+      );
 
       setState(() => _isLoading = false);
 
@@ -192,7 +216,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         _showSnackBar('Rental item added successfully!');
         _clearForm();
       } else {
-        _showSnackBar('Failed to add rental item. Please try again.', isError: true);
+        _showSnackBar(
+          'Failed to add rental item. Please try again.',
+          isError: true,
+        );
       }
     } else {
       _showSnackBar('Please fill in all required fields.', isError: true);
@@ -238,49 +265,101 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // SECTION 1: Item Details & Pricing---------------------------
               _buildSectionHeader('> Item Details & Pricing'),
 
               // 📸 Images Section Placeholder
-              Center(
-                child: GestureDetector(
-                  onTap: _selectImage,
-                  child: AnimatedContainer( // Switched to AnimatedContainer for a smooth feel
-                    duration: const Duration(milliseconds: 300),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
                     height: 120,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      // Changes to a soft secondary/primary tint when image is picked
-                      color: _rentalItemImg != null ? AppStyles.secondaryColor.withOpacity(0.05) : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: _rentalItemImg != null ? AppStyles.secondaryColor : Colors.grey.shade400,
-                        width: _rentalItemImg != null ? 1 : 1,
-                        style: BorderStyle.solid,
+                    child: _rentalItemImages.isEmpty
+                        ? GestureDetector(
+                      onTap: () => _selectImage(isMultiple: true), // Pass true here
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_photo_alternate_outlined, color: Colors.grey, size: 40),
+                            SizedBox(height: 8),
+                            Text('Tap to Add Item Images', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: _rentalItemImg == null
-                        ? const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_photo_alternate_outlined, color: Colors.grey, size: 40),
-                        SizedBox(height: 8),
-                        Text('Tap to Add Item Images', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-                      ],
                     )
-                        : Column( // New UI state for when image is selected
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 40),
-                        const SizedBox(height: 8),
-                        const Text('Item Image Added', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text('Tap to change image', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      ],
+                        : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _rentalItemImages.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == _rentalItemImages.length) {
+                          return GestureDetector(
+                            onTap: () => _selectImage(isMultiple: true), // Pass true here
+                            child: Container(
+                              width: 100,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: AppStyles.secondaryColor.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppStyles.secondaryColor),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo, color: AppStyles.secondaryColor),
+                                  const Text("Add More", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Stack(
+                          children: [
+                            Container(
+                              width: 120,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                image: DecorationImage(
+                                  image: FileImage(_rentalItemImages[index]),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 5,
+                              right: 17,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _rentalItemImages.removeAt(index)),
+                                child: CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor: Colors.black.withOpacity(0.6),
+                                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
-                ),
+                  if (_rentalItemImages.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0, left: 4),
+                      child: Text(
+                        "${_rentalItemImages.length} images selected",
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -288,7 +367,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 controller: _itemNameController,
                 labelText: 'Item Name',
                 warning: 'Please enter the item name',
-                prefixIcon: Icon(Icons.inventory_2_outlined, color: AppStyles.secondaryColor),
+                prefixIcon: Icon(
+                  Icons.inventory_2_outlined,
+                  color: AppStyles.secondaryColor,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -299,7 +381,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                       controller: _categoryController,
                       labelText: 'Category',
                       warning: 'Required',
-                      prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
+                      prefixIcon: Icon(
+                        Icons.category_outlined,
+                        color: AppStyles.secondaryColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -327,7 +412,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 labelText: 'Purchase Year (e.g., 2022)',
                 warning: 'Required',
                 keyboardType: TextInputType.number,
-                prefixIcon: Icon(Icons.calendar_today, color: AppStyles.secondaryColor),
+                prefixIcon: Icon(
+                  Icons.calendar_today,
+                  color: AppStyles.secondaryColor,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -340,7 +428,11 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                       labelText: 'Rent / Hour',
                       warning: 'Required',
                       keyboardType: TextInputType.number,
-                      prefixIcon: Icon(Icons.currency_rupee, size: 18, color: AppStyles.secondaryColor),
+                      prefixIcon: Icon(
+                        Icons.currency_rupee,
+                        size: 18,
+                        color: AppStyles.secondaryColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -350,7 +442,11 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                       labelText: 'Rent / Day',
                       warning: 'Required',
                       keyboardType: TextInputType.number,
-                      prefixIcon: Icon(Icons.currency_rupee, size: 18, color: AppStyles.secondaryColor),
+                      prefixIcon: Icon(
+                        Icons.currency_rupee,
+                        size: 18,
+                        color: AppStyles.secondaryColor,
+                      ),
                     ),
                   ),
                 ],
@@ -362,7 +458,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 labelText: 'Security Deposit (Refundable)',
                 warning: 'Required. Enter 0 if none.',
                 keyboardType: TextInputType.number,
-                prefixIcon: Icon(Icons.shield_outlined, color: AppStyles.secondaryColor),
+                prefixIcon: Icon(
+                  Icons.shield_outlined,
+                  color: AppStyles.secondaryColor,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -375,8 +474,8 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 child: SwitchListTile(
                   title: const Text('Offer Delivery'),
                   subtitle: const Text(
-                      'Turn on if you can deliver this item to the renter\'s location.',
-                      style: TextStyle(fontSize: 12)
+                    'Turn on if you can deliver this item to the renter\'s location.',
+                    style: TextStyle(fontSize: 12),
                   ),
                   value: _offerDelivery,
                   activeColor: Colors.green,
@@ -396,9 +495,84 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                   labelText: 'Add Delivery Charge',
                   warning: 'Required',
                   keyboardType: TextInputType.number,
-                  prefixIcon: Icon(Icons.currency_rupee, size: 18, color: AppStyles.secondaryColor),
+                  prefixIcon: Icon(
+                    Icons.currency_rupee,
+                    size: 18,
+                    color: AppStyles.secondaryColor,
+                  ),
                 ),
               ],
+
+              // SECTION 3: Location Details--------------------------------
+              // if (_offerDelivery) ...[
+              //   _buildSectionHeader('> Location Details'),
+              //
+              //   CustomInputField(
+              //     controller: _houseAreaController,
+              //     labelText: 'House / Area',
+              //     warning: 'Please enter house/area',
+              //   ),
+              //   const SizedBox(height: 16),
+              //
+              //   CustomInputField(
+              //     controller: _roadLandmarkController,
+              //     labelText: 'Road / Landmark',
+              //     warning: 'Please enter road/landmark',
+              //   ),
+              //   const SizedBox(height: 16),
+              //
+              //   Row(
+              //     children: [
+              //       Expanded(
+              //         child: CustomInputField(
+              //           controller: _cityController,
+              //           labelText: 'City',
+              //           warning: 'Required',
+              //         ),
+              //       ),
+              //       const SizedBox(width: 16),
+              //       Expanded(
+              //         child: CustomInputField(
+              //           controller: _stateController,
+              //           labelText: 'State',
+              //           warning: 'Required',
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              //   const SizedBox(height: 16),
+              //
+              //   CustomInputField(
+              //     controller: _pincodeController,
+              //     labelText: 'Pincode',
+              //     warning: 'Please enter pincode',
+              //     keyboardType: TextInputType.number,
+              //   ),
+              //   const SizedBox(height: 16),
+              //
+              //   SizedBox(
+              //     width: double.infinity,
+              //     child: OutlinedButton.icon(
+              //       style: OutlinedButton.styleFrom(
+              //         side: BorderSide(color: AppStyles.secondaryColor),
+              //         padding: const EdgeInsets.symmetric(vertical: 12),
+              //       ),
+              //       onPressed: () {},
+              //       icon: Icon(
+              //         Icons.my_location,
+              //         color: AppStyles.primaryColor,
+              //       ),
+              //       label: Text(
+              //         'Detect Location',
+              //         style: TextStyle(
+              //           color: AppStyles.primaryColor,
+              //           fontSize: 16,
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              //   // const SizedBox(height: 40),
+              // ],
               const Divider(height: 40, thickness: 1),
 
               // SECTION 2: Ownership Details------------------------------------
@@ -408,7 +582,10 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 controller: _ownerNameController,
                 labelText: 'Owner Name',
                 warning: 'Please enter owner name',
-                prefixIcon: Icon(Icons.person_outline, color: AppStyles.secondaryColor),
+                prefixIcon: Icon(
+                  Icons.person_outline,
+                  color: AppStyles.secondaryColor,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -430,134 +607,98 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
 
               const SizedBox(height: 15),
               // Upload Ownership proof
-              const Text('> Ownership Proof (Optional)', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text(
+                '> Ownership Proof (Optional)',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
-              InkWell(
-                onTap: _selectImage,
-                borderRadius: BorderRadius.circular(12),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: _invoiceBillImg != null ? Colors.green.withOpacity(0.05) : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _invoiceBillImg != null ? Colors.green.shade300 : AppStyles.primaryColor_light,
-                      width: _invoiceBillImg != null ? 1 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _invoiceBillImg != null ? Icons.check_circle_rounded : Icons.add_photo_alternate_outlined,
-                        color: _invoiceBillImg != null ? AppStyles.secondaryColor : AppStyles.secondaryColor,
-                        size: 26,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 80, // Height remains consistent with Gallery
+                    child: _invoiceBillImg == null
+                        ? InkWell(
+                      onTap: () => _selectImage(isMultiple: false),
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 80, // Fixed width to match Gallery cards (you had double.maxFinite which is incorrect)
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppStyles.primaryColor_light),
+                        ),
+                        child: Column( // Changed from Row to Column for vertical alignment
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              _invoiceBillImg != null ? 'Invoice Attached' : 'Upload Invoice / Bill Photo',
-                              style: TextStyle(
-                                color: _invoiceBillImg != null ? AppStyles.secondaryColor : Colors.grey[800],
-                                // fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
+                            Icon(Icons.add_photo_alternate_outlined,
+                                color: AppStyles.secondaryColor, size: 28),
+                            const SizedBox(height: 4), // This was incorrectly placed
+                            const Text(
+                              'Upload\nInvoice',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
-                            if (_invoiceBillImg != null)
-                              Text(
-                                _invoiceBillImg!.path.split('/').last,
-                                style: TextStyle(color: Colors.green.shade600, fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
                           ],
                         ),
                       ),
-                      if (_invoiceBillImg != null)
-                        GestureDetector(
-                          onTap: () => setState(() => _invoiceBillImg = null),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                            ),
-                            child:  Icon(
-                                Icons.close,
-                                color: AppStyles.secondaryColor,
-                                size: 25
+                    )
+                        : Stack(
+                      children: [
+                        // Image Preview Card
+                        Container(
+                          width: 80, // Matching width
+                          height: 80, // Added explicit height
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.shade300),
+                            image: DecorationImage(
+                              image: FileImage(_invoiceBillImg!),
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                ),
-              ),
-              const Divider(height: 40, thickness: 1),
-
-              // SECTION 3: Location Details--------------------------------
-
-              _buildSectionHeader('> Location Details'),
-
-              CustomInputField(
-                controller: _houseAreaController,
-                labelText: 'House / Area',
-                warning: 'Please enter house/area',
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _roadLandmarkController,
-                labelText: 'Road / Landmark',
-                warning: 'Please enter road/landmark',
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _cityController,
-                      labelText: 'City',
-                      warning: 'Required',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _stateController,
-                      labelText: 'State',
-                      warning: 'Required',
+                        // Remove Button
+                        Positioned(
+                          top: 5,
+                          right: 5,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _invoiceBillImg = null),
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.black.withOpacity(0.6),
+                              child: const Icon(Icons.close, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        // "Invoice" Label Badge
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(12),
+                                bottomRight: Radius.circular(12),
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: const Text(
+                              "Invoice",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _pincodeController,
-                labelText: 'Pincode',
-                warning: 'Please enter pincode',
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppStyles.secondaryColor),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () {},
-                  icon: Icon(Icons.my_location, color: AppStyles.primaryColor),
-                  label: Text('Detect Location', style: TextStyle(color: AppStyles.primaryColor, fontSize: 16)),
-                ),
-              ),
-              const SizedBox(height: 40),
+              const Divider(height: 40, thickness: 1),
 
               // 📌 Submit Button
               SizedBox(
@@ -565,29 +706,34 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 height: 50,
                 child: ElevatedButton(
                   style: AppStyles.primaryButtonStyle.copyWith(
-                    backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                          (Set<WidgetState> states) {
-                        if (states.contains(WidgetState.disabled)) {
-                          return Colors.grey[300]!;
-                        }
-                        return AppStyles.primaryColor;
-                      },
-                    ),
+                    backgroundColor: WidgetStateProperty.resolveWith<Color>((
+                      Set<WidgetState> states,
+                    ) {
+                      if (states.contains(WidgetState.disabled)) {
+                        return Colors.grey[300]!;
+                      }
+                      return AppStyles.primaryColor;
+                    }),
                   ),
                   onPressed: _isLoading ? null : _submitForm,
                   child: _isLoading
                       ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
-                  )
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
                       : const Text(
-                    'Add Rental Item',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
+                          'Add Rental Item',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
                 ),
               ),
-              const SizedBox(height: 40), // Extra padding at bottom for scroll clearance
+              const SizedBox(
+                height: 40,
+              ), // Extra padding at bottom for scroll clearance
             ],
           ),
         ),
