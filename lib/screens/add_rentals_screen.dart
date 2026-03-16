@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:sevashare_v4/styles/appstyles.dart';
 import '../custom_widgets/custom_inputfield.dart';
+import '../providers/rentals_provider.dart';
 import '../services/firebase_service.dart';
 
 class AddRentalItemScreen extends StatefulWidget {
@@ -164,14 +166,13 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         return;
       }
 
-      // String? invoiceUrl;
-      // if (_invoiceFile != null) {
-      //   // Use the same upload function you built for the profile picture!
-      //   invoiceUrl = await _firestoreService.uploadProfileImage(_invoiceFile!);
-      // }
+      // 1. Invoke the Provider to fetch the generated ID
+      final rentalsProvider = Provider.of<RentalsProvider>(context, listen: false);
+      final String rentalItemId = rentalsProvider.generateRentalItemId(currentUser.uid);
 
       // Map all values into a dictionary
       final Map<String, dynamic> rentalData = {
+        'rental_item_id': rentalItemId,
         'currentUser_uid': currentUser.uid,
         // Item Details
         'item_name': _itemNameController.text.trim(),
@@ -207,7 +208,7 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
 
       // Ensure you add a method called `saveRentalDetails` in your service file!
       final bool success = await _firestoreService.saveRentalsDetails(
-        rentalData,
+        rentalData,rentalItemId
       );
 
       setState(() => _isLoading = false);
@@ -258,450 +259,448 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         centerTitle: true,
         iconTheme: IconThemeData(color: AppStyles.primaryColor),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // SECTION 1: Item Details & Pricing---------------------------
-              _buildSectionHeader('> Item Details & Pricing'),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // SECTION 1: Item Details & Pricing
+                    _buildSectionHeader('> Item Details & Pricing'),
 
-              // 📸 Images Section Placeholder
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 120,
-                    child: _rentalItemImages.isEmpty
-                        ? GestureDetector(
-                      onTap: () => _selectImage(isMultiple: true), // Pass true here
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(color: Colors.grey.shade400),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_photo_alternate_outlined, color: Colors.grey, size: 40),
-                            SizedBox(height: 8),
-                            Text('Tap to Add Item Images', style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                    )
-                        : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _rentalItemImages.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == _rentalItemImages.length) {
-                          return GestureDetector(
-                            onTap: () => _selectImage(isMultiple: true), // Pass true here
-                            child: Container(
-                              width: 100,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                color: AppStyles.secondaryColor.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppStyles.secondaryColor),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_a_photo, color: AppStyles.secondaryColor),
-                                  const Text("Add More", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Stack(
-                          children: [
-                            Container(
-                              width: 120,
-                              margin: const EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                image: DecorationImage(
-                                  image: FileImage(_rentalItemImages[index]),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: 5,
-                              right: 17,
-                              child: GestureDetector(
-                                onTap: () => setState(() => _rentalItemImages.removeAt(index)),
-                                child: CircleAvatar(
-                                  radius: 12,
-                                  backgroundColor: Colors.black.withOpacity(0.6),
-                                  child: const Icon(Icons.close, size: 16, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                  if (_rentalItemImages.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0, left: 4),
-                      child: Text(
-                        "${_rentalItemImages.length} images selected",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              CustomInputField(
-                controller: _itemNameController,
-                labelText: 'Item Name',
-                warning: 'Please enter the item name',
-                prefixIcon: Icon(
-                  Icons.inventory_2_outlined,
-                  color: AppStyles.secondaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _categoryController,
-                      labelText: 'Category',
-                      warning: 'Required',
-                      prefixIcon: Icon(
-                        Icons.category_outlined,
-                        color: AppStyles.secondaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _modelNumberController,
-                      labelText: 'Model No.',
-                      warning: 'Required',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _descController,
-                labelText: 'Item Description & Condition',
-                warning: 'Please provide a description',
-                maxlines: 3,
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _purchaseYearController,
-                labelText: 'Purchase Year (e.g., 2022)',
-                warning: 'Required',
-                keyboardType: TextInputType.number,
-                prefixIcon: Icon(
-                  Icons.calendar_today,
-                  color: AppStyles.secondaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Pricing Row
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _rentPerHourController,
-                      labelText: 'Rent / Hour',
-                      warning: 'Required',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: Icon(
-                        Icons.currency_rupee,
-                        size: 18,
-                        color: AppStyles.secondaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _rentPerDayController,
-                      labelText: 'Rent / Day',
-                      warning: 'Required',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: Icon(
-                        Icons.currency_rupee,
-                        size: 18,
-                        color: AppStyles.secondaryColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _securityDepositController,
-                labelText: 'Security Deposit (Refundable)',
-                warning: 'Required. Enter 0 if none.',
-                keyboardType: TextInputType.number,
-                prefixIcon: Icon(
-                  Icons.shield_outlined,
-                  color: AppStyles.secondaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Delivery Option Switch
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppStyles.primaryColor_light),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SwitchListTile(
-                  title: const Text('Offer Delivery'),
-                  subtitle: const Text(
-                    'Turn on if you can deliver this item to the renter\'s location.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  value: _offerDelivery,
-                  activeColor: Colors.green,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _offerDelivery = value;
-                    });
-                  },
-                ),
-              ),
-
-              // 📌 NEW: Conditionally show Delivery Charge field
-              if (_offerDelivery) ...[
-                const SizedBox(height: 16),
-                CustomInputField(
-                  controller: _deliveryChargeController,
-                  labelText: 'Add Delivery Charge',
-                  warning: 'Required',
-                  keyboardType: TextInputType.number,
-                  prefixIcon: Icon(
-                    Icons.currency_rupee,
-                    size: 18,
-                    color: AppStyles.secondaryColor,
-                  ),
-                ),
-              ],
-
-              // SECTION 3: Location Details--------------------------------
-              // if (_offerDelivery) ...[
-              //   _buildSectionHeader('> Location Details'),
-              //
-              //   CustomInputField(
-              //     controller: _houseAreaController,
-              //     labelText: 'House / Area',
-              //     warning: 'Please enter house/area',
-              //   ),
-              //   const SizedBox(height: 16),
-              //
-              //   CustomInputField(
-              //     controller: _roadLandmarkController,
-              //     labelText: 'Road / Landmark',
-              //     warning: 'Please enter road/landmark',
-              //   ),
-              //   const SizedBox(height: 16),
-              //
-              //   Row(
-              //     children: [
-              //       Expanded(
-              //         child: CustomInputField(
-              //           controller: _cityController,
-              //           labelText: 'City',
-              //           warning: 'Required',
-              //         ),
-              //       ),
-              //       const SizedBox(width: 16),
-              //       Expanded(
-              //         child: CustomInputField(
-              //           controller: _stateController,
-              //           labelText: 'State',
-              //           warning: 'Required',
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              //   const SizedBox(height: 16),
-              //
-              //   CustomInputField(
-              //     controller: _pincodeController,
-              //     labelText: 'Pincode',
-              //     warning: 'Please enter pincode',
-              //     keyboardType: TextInputType.number,
-              //   ),
-              //   const SizedBox(height: 16),
-              //
-              //   SizedBox(
-              //     width: double.infinity,
-              //     child: OutlinedButton.icon(
-              //       style: OutlinedButton.styleFrom(
-              //         side: BorderSide(color: AppStyles.secondaryColor),
-              //         padding: const EdgeInsets.symmetric(vertical: 12),
-              //       ),
-              //       onPressed: () {},
-              //       icon: Icon(
-              //         Icons.my_location,
-              //         color: AppStyles.primaryColor,
-              //       ),
-              //       label: Text(
-              //         'Detect Location',
-              //         style: TextStyle(
-              //           color: AppStyles.primaryColor,
-              //           fontSize: 16,
-              //         ),
-              //       ),
-              //     ),
-              //   ),
-              //   // const SizedBox(height: 40),
-              // ],
-              const Divider(height: 40, thickness: 1),
-
-              // SECTION 2: Ownership Details------------------------------------
-              _buildSectionHeader('> Ownership Details'),
-
-              CustomInputField(
-                controller: _ownerNameController,
-                labelText: 'Owner Name',
-                warning: 'Please enter owner name',
-                prefixIcon: Icon(
-                  Icons.person_outline,
-                  color: AppStyles.secondaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _contactNoController,
-                labelText: 'Contact No.',
-                warning: 'Please enter your contact number',
-                keyboardType: TextInputType.phone,
-                prefixIcon: Icon(Icons.phone, color: AppStyles.secondaryColor),
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _serialNumberController,
-                labelText: 'Serial No./ VIN / IMEI',
-                warning: 'Please provide serial number or proof',
-                maxlines: 1,
-              ),
-
-              const SizedBox(height: 15),
-              // Upload Ownership proof
-              const Text(
-                '> Ownership Proof (Optional)',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 80, // Height remains consistent with Gallery
-                    child: _invoiceBillImg == null
-                        ? InkWell(
-                      onTap: () => _selectImage(isMultiple: false),
-                      borderRadius: BorderRadius.circular(12),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: 80, // Fixed width to match Gallery cards (you had double.maxFinite which is incorrect)
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppStyles.primaryColor_light),
-                        ),
-                        child: Column( // Changed from Row to Column for vertical alignment
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_photo_alternate_outlined,
-                                color: AppStyles.secondaryColor, size: 28),
-                            const SizedBox(height: 4), // This was incorrectly placed
-                            const Text(
-                              'Upload\nInvoice',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                        : Stack(
+                    // 📸 Images Section
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Image Preview Card
-                        Container(
-                          width: 80, // Matching width
-                          height: 80, // Added explicit height
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.green.shade300),
-                            image: DecorationImage(
-                              image: FileImage(_invoiceBillImg!),
-                              fit: BoxFit.cover,
+                        SizedBox(
+                          height: 120,
+                          child: _rentalItemImages.isEmpty
+                              ? GestureDetector(
+                                  onTap: () => _selectImage(isMultiple: true),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(15),
+                                      border:
+                                          Border.all(color: Colors.grey.shade400),
+                                    ),
+                                    child: const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                            Icons.add_photo_alternate_outlined,
+                                            color: Colors.grey,
+                                            size: 40),
+                                        SizedBox(height: 8),
+                                        Text('Tap to Add Item Images',
+                                            style:
+                                                TextStyle(color: Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _rentalItemImages.length + 1,
+                                  itemBuilder: (context, index) {
+                                    if (index == _rentalItemImages.length) {
+                                      return GestureDetector(
+                                        onTap: () =>
+                                            _selectImage(isMultiple: true),
+                                        child: Container(
+                                          width: 100,
+                                          margin:
+                                              const EdgeInsets.only(right: 8),
+                                          decoration: BoxDecoration(
+                                            color: AppStyles.secondaryColor
+                                                .withOpacity(0.05),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: AppStyles.secondaryColor),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.add_a_photo,
+                                                  color:
+                                                      AppStyles.secondaryColor),
+                                              const Text("Add More",
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    return Stack(
+                                      children: [
+                                        Container(
+                                          width: 120,
+                                          margin:
+                                              const EdgeInsets.only(right: 12),
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            image: DecorationImage(
+                                              image: FileImage(
+                                                  _rentalItemImages[index]),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 5,
+                                          right: 17,
+                                          child: GestureDetector(
+                                            onTap: () => setState(() =>
+                                                _rentalItemImages
+                                                    .removeAt(index)),
+                                            child: CircleAvatar(
+                                              radius: 12,
+                                              backgroundColor:
+                                                  Colors.black.withOpacity(0.6),
+                                              child: const Icon(Icons.close,
+                                                  size: 16, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                        ),
+                        if (_rentalItemImages.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0, left: 4),
+                            child: Text(
+                              "${_rentalItemImages.length} images selected",
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    CustomInputField(
+                      controller: _itemNameController,
+                      labelText: 'Item Name',
+                      warning: 'Please enter the item name',
+                      prefixIcon: Icon(
+                        Icons.inventory_2_outlined,
+                        color: AppStyles.secondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _categoryController,
+                            labelText: 'Category',
+                            warning: 'Required',
+                            prefixIcon: Icon(
+                              Icons.category_outlined,
+                              color: AppStyles.secondaryColor,
                             ),
                           ),
                         ),
-                        // Remove Button
-                        Positioned(
-                          top: 5,
-                          right: 5,
-                          child: GestureDetector(
-                            onTap: () => setState(() => _invoiceBillImg = null),
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundColor: Colors.black.withOpacity(0.6),
-                              child: const Icon(Icons.close, size: 16, color: Colors.white),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _modelNumberController,
+                            labelText: 'Model No.',
+                            warning: 'Required',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _descController,
+                      labelText: 'Item Description & Condition',
+                      warning: 'Please provide a description',
+                      maxlines: 3,
+                    ),
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _purchaseYearController,
+                      labelText: 'Purchase Year (e.g., 2022)',
+                      warning: 'Required',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icon(
+                        Icons.calendar_today,
+                        color: AppStyles.secondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Pricing Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _rentPerHourController,
+                            labelText: 'Rent / Hour',
+                            warning: 'Required',
+                            keyboardType: TextInputType.number,
+                            prefixIcon: Icon(
+                              Icons.currency_rupee,
+                              size: 18,
+                              color: AppStyles.secondaryColor,
                             ),
                           ),
                         ),
-                        // "Invoice" Label Badge
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(12),
-                                bottomRight: Radius.circular(12),
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: const Text(
-                              "Invoice",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _rentPerDayController,
+                            labelText: 'Rent / Day',
+                            warning: 'Required',
+                            keyboardType: TextInputType.number,
+                            prefixIcon: Icon(
+                              Icons.currency_rupee,
+                              size: 18,
+                              color: AppStyles.secondaryColor,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const Divider(height: 40, thickness: 1),
+                    const SizedBox(height: 16),
 
-              // 📌 Submit Button
-              SizedBox(
+                    CustomInputField(
+                      controller: _securityDepositController,
+                      labelText: 'Security Deposit (Refundable)',
+                      warning: 'Required. Enter 0 if none.',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icon(
+                        Icons.shield_outlined,
+                        color: AppStyles.secondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Delivery Option Switch
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppStyles.primaryColor_light),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SwitchListTile(
+                        title: const Text('Offer Delivery'),
+                        subtitle: const Text(
+                          'Turn on if you can deliver this item to the renter\'s location.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        value: _offerDelivery,
+                        activeColor: Colors.green,
+                        onChanged: (bool value) {
+                          setState(() {
+                            _offerDelivery = value;
+                          });
+                        },
+                      ),
+                    ),
+
+                    if (_offerDelivery) ...[
+                      const SizedBox(height: 16),
+                      CustomInputField(
+                        controller: _deliveryChargeController,
+                        labelText: 'Add Delivery Charge',
+                        warning: 'Required',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icon(
+                          Icons.currency_rupee,
+                          size: 18,
+                          color: AppStyles.secondaryColor,
+                        ),
+                      ),
+                    ],
+
+                    const Divider(height: 40, thickness: 1),
+
+                    // SECTION 2: Ownership Details
+                    _buildSectionHeader('> Ownership Details'),
+
+                    CustomInputField(
+                      controller: _ownerNameController,
+                      labelText: 'Owner Name',
+                      warning: 'Please enter owner name',
+                      prefixIcon: Icon(
+                        Icons.person_outline,
+                        color: AppStyles.secondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _contactNoController,
+                      labelText: 'Contact No.',
+                      warning: 'Please enter your contact number',
+                      keyboardType: TextInputType.phone,
+                      prefixIcon:
+                          Icon(Icons.phone, color: AppStyles.secondaryColor),
+                    ),
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _serialNumberController,
+                      labelText: 'Serial No./ VIN / IMEI',
+                      warning: 'Please provide serial number or proof',
+                      maxlines: 1,
+                    ),
+
+                    const SizedBox(height: 15),
+                    const Text(
+                      '> Ownership Proof (Optional)',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _invoiceBillImg == null
+                            ? InkWell(
+                                onTap: () => _selectImage(isMultiple: true),
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppStyles.primaryColor_light,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                        color: AppStyles.secondaryColor,
+                                        size: 26,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Upload Invoice / Bill Photo',
+                                          style: TextStyle(
+                                            color: Colors.grey[800],
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : Stack(
+                                children: [
+                                  InkWell(
+                                    onTap: () =>
+                                        _selectImage(isMultiple: false),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: Colors.green.shade300),
+                                        image: DecorationImage(
+                                          image: FileImage(_invoiceBillImg!),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 5,
+                                    right: 5,
+                                    child: GestureDetector(
+                                      onTap: () => setState(
+                                          () => _invoiceBillImg = null),
+                                      child: CircleAvatar(
+                                        radius: 12,
+                                        backgroundColor:
+                                            Colors.black.withOpacity(0.6),
+                                        child: const Icon(Icons.close,
+                                            size: 16, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.5),
+                                        borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(12),
+                                          bottomRight: Radius.circular(12),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: const Text(
+                                        "Invoice",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // 📌 Fixed Submit Button
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
@@ -731,12 +730,9 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                         ),
                 ),
               ),
-              const SizedBox(
-                height: 40,
-              ), // Extra padding at bottom for scroll clearance
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

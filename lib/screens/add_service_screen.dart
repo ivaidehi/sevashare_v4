@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // 📌 Added Firestore
+import 'package:provider/provider.dart';
 import 'package:sevashare_v4/styles/appstyles.dart';
 
 import '../custom_widgets/custom_inputfield.dart';
+import '../providers/service_provider.dart';
 import '../services/firebase_service.dart';
 
 class AddServiceScreen extends StatefulWidget {
@@ -109,9 +111,13 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         return;
       }
 
+      final servicesProvider = Provider.of<ServicesProvider>(context, listen: false);
+      final String serviceId = servicesProvider.generateServiceId(currentUser.uid);
+
       // 3. Map all values into a dictionary
       final Map<String, dynamic> serviceData = {
         'currentUser_uid': currentUser.uid, // ✨ Added the UID here!
+        'service_id': serviceId, // ✨ Added the UID here!
         'full_name': _fullNameController.text.trim(),
         'contact_no': _contactNoController.text.trim(),
         'address': {
@@ -131,7 +137,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
       };
 
       // 4. Send to Firestore
-      final bool success = await _firestoreService.saveServiceDetails(serviceData);
+      final bool success = await _firestoreService.saveServiceDetails(serviceData, serviceId);
 
       setState(() => _isLoading = false);
 
@@ -185,194 +191,191 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         centerTitle: true,
         iconTheme: IconThemeData(color: AppStyles.primaryColor),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // SECTION A: Personal Details
-              _buildSectionHeader('> Personal Details'),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // SECTION A: Personal Details
+                    _buildSectionHeader('> Personal Details'),
 
-              // profile photo
-              // Center(
-              //   child: GestureDetector(
-              //     onTap: () {},
-              //     child: Container(
-              //       height: 100,
-              //       width: 100,
-              //       decoration: BoxDecoration(
-              //         color: Colors.grey[200],
-              //         shape: BoxShape.circle,
-              //         border: Border.all(color: Colors.grey),
-              //       ),
-              //       child: const Column(
-              //         mainAxisAlignment: MainAxisAlignment.center,
-              //         children: [
-              //           Icon(Icons.camera_alt, color: Colors.grey, size: 30),
-              //           Text('Add Photo', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
-              // const SizedBox(height: 20),
-
-              CustomInputField(
-                controller: _fullNameController,
-                labelText: 'Full Name',
-                warning: 'Please enter your full name',
-                prefixIcon: Icon(Icons.person, color: AppStyles.secondaryColor),
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _contactNoController,
-                labelText: 'Contact No.',
-                warning: 'Please enter your contact number',
-                keyboardType: TextInputType.phone,
-                prefixIcon: Icon(Icons.phone, color: AppStyles.secondaryColor),
-              ),
-              const SizedBox(height: 16),
-
-              const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-
-              CustomInputField(
-                controller: _houseAreaController,
-                labelText: 'House / Area',
-                warning: 'Please enter house/area',
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _roadLandmarkController,
-                labelText: 'Road / Landmark',
-                warning: 'Please enter road/landmark',
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _cityController,
-                      labelText: 'City',
-                      warning: 'Required',
+                    CustomInputField(
+                      controller: _fullNameController,
+                      labelText: 'Full Name',
+                      warning: 'Please enter your full name',
+                      prefixIcon: Icon(Icons.person, color: AppStyles.secondaryColor),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _stateController,
-                      labelText: 'State',
-                      warning: 'Required',
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _contactNoController,
+                      labelText: 'Contact No.',
+                      warning: 'Please enter your contact number',
+                      keyboardType: TextInputType.phone,
+                      prefixIcon: Icon(Icons.phone, color: AppStyles.secondaryColor),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              CustomInputField(
-                controller: _pincodeController,
-                labelText: 'Pincode',
-                warning: 'Please enter pincode',
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
+                    const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
 
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppStyles.secondaryColor),
-                  ),
-                  onPressed: () {},
-                  icon: Icon(Icons.my_location, color: AppStyles.primaryColor),
-                  label: Text('Detect Location', style: TextStyle(color: AppStyles.primaryColor)),
-                ),
-              ),
-              const Divider(height: 40, thickness: 1),
+                    CustomInputField(
+                      controller: _houseAreaController,
+                      labelText: 'House / Area',
+                      warning: 'Please enter house/area',
+                    ),
+                    const SizedBox(height: 16),
 
-              // SECTION B: Service Details
-              _buildSectionHeader('> Service Details'),
+                    CustomInputField(
+                      controller: _roadLandmarkController,
+                      labelText: 'Road / Landmark',
+                      warning: 'Please enter road/landmark',
+                    ),
+                    const SizedBox(height: 16),
 
-              CustomInputField(
-                controller: _professionController,
-                labelText: 'Profession',
-                warning: 'Please enter your profession',
-                prefixIcon: Icon(Icons.work_outline, color: AppStyles.secondaryColor),
-              ),
-              const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _cityController,
+                            labelText: 'City',
+                            warning: 'Required',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _stateController,
+                            labelText: 'State',
+                            warning: 'Required',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
 
-              CustomInputField(
-                controller: _serviceCategoryController,
-                labelText: 'Category',
-                warning: 'Please enter a category (e.g., Cleaning, Plumbing)',
-                prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
-              ),
-              const SizedBox(height: 16),
-
-              CustomInputField(
-                controller: _serviceDescController,
-                labelText: 'Service Description',
-                warning: 'Please provide a description',
-                maxlines: 3,
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _experienceController,
-                      labelText: 'Exp. (Years)',
-                      warning: 'Required',
+                    CustomInputField(
+                      controller: _pincodeController,
+                      labelText: 'Pincode',
+                      warning: 'Please enter pincode',
                       keyboardType: TextInputType.number,
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomInputField(
-                      controller: _hourlyRateController,
-                      labelText: 'Hourly Rate',
-                      warning: 'Required',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: Icon(Icons.currency_rupee, size: 18, color: AppStyles.secondaryColor),
+                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppStyles.secondaryColor),
+                        ),
+                        onPressed: () {},
+                        icon: Icon(Icons.my_location, color: AppStyles.primaryColor),
+                        label: Text('Detect Location', style: TextStyle(color: AppStyles.primaryColor)),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const Divider(height: 40, thickness: 1),
+                    const Divider(height: 40, thickness: 1),
 
-              // SECTION C: KYC Identity Verification
-              _buildSectionHeader('> KYC Identity Verification'),
+                    // SECTION B: Service Details
+                    _buildSectionHeader('> Service Details'),
 
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
+                    CustomInputField(
+                      controller: _professionController,
+                      labelText: 'Profession',
+                      warning: 'Please enter your profession',
+                      prefixIcon: Icon(Icons.work_outline, color: AppStyles.secondaryColor),
+                    ),
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _serviceCategoryController,
+                      labelText: 'Category',
+                      warning: 'Please enter a category (e.g., Cleaning, Plumbing)',
+                      prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
+                    ),
+                    const SizedBox(height: 16),
+
+                    CustomInputField(
+                      controller: _serviceDescController,
+                      labelText: 'Service Description',
+                      warning: 'Please provide a description',
+                      maxlines: 3,
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _experienceController,
+                            labelText: 'Exp. (Years)',
+                            warning: 'Required',
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CustomInputField(
+                            controller: _hourlyRateController,
+                            labelText: 'Hourly Rate',
+                            warning: 'Required',
+                            keyboardType: TextInputType.number,
+                            prefixIcon: Icon(Icons.currency_rupee, size: 18, color: AppStyles.secondaryColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 40, thickness: 1),
+
+                    // SECTION C: KYC Identity Verification
+                    _buildSectionHeader('> KYC Identity Verification'),
+
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: const Text(
+                        'KYC Details section coming soon',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                child: const Text(
-                  'KYC Details section coming soon',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
               ),
-              const SizedBox(height: 32),
-
-              // 📌 Submit Button (Updated with loading indicator)
-              SizedBox(
+            ),
+          ),
+          // 📌 Fixed Submit Button
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   style: AppStyles.primaryButtonStyle.copyWith(
                     backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                          (Set<MaterialState> states) {
+                      (Set<MaterialState> states) {
                         if (states.contains(MaterialState.disabled)) {
                           return Colors.grey[300]!;
                         }
@@ -380,25 +383,25 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                       },
                     ),
                   ),
-                  // Disable the button while loading
                   onPressed: _isLoading ? null : _submitForm,
-                  // Show a loading spinner or text
                   child: _isLoading
                       ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
-                  )
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
                       : const Text(
-                    'Add Service',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
+                          'Add Service',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

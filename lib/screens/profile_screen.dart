@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sevashare_v4/providers/user_provider.dart';
+import 'package:sevashare_v4/providers/service_provider.dart';
 import 'package:sevashare_v4/screens/add_rentals_screen.dart';
 import 'package:sevashare_v4/screens/add_service_screen.dart';
 

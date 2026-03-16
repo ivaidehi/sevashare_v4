@@ -12,16 +12,32 @@ class FirebaseService {
 }
 
 // 📌 To store service_provider and their service details in firebase firestore
+// 📌 To store service_provider and their service details in firebase firestore
 class StoreAllServiceInfo {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Function to save form data to Firestore
-  Future<bool> saveServiceDetails(Map<String, dynamic> serviceData) async {
+  // 1. Helper to generate the Service ID cleanly
+  String getNewServiceId(String uid) {
+    return _db
+        .collection('service_providers')
+        .doc(uid)
+        .collection('services')
+        .doc()
+        .id;
+  }
+
+  // 2. Your existing save function (updated to accept the generated ID)
+  Future<bool> saveServiceDetails(Map<String, dynamic> serviceData, String serviceId) async {
     try {
-      // Use the UID as the Document ID instead of letting Firebase generate a random one
       String uid = FirebaseAuth.instance.currentUser!.uid;
 
-      await _db.collection('service_providers').doc(uid).set(serviceData);
+      await _db
+          .collection('service_providers')
+          .doc(uid)
+          .collection('services')
+          .doc(serviceId) // Use the generated ID here
+          .set(serviceData);
+
       return true;
     } catch (e) {
       print('Error saving services data: $e');
@@ -31,18 +47,29 @@ class StoreAllServiceInfo {
 }
 
 // 📌 To store rental items and their owner details in firebase firestore
+// Inside your firebase_service.dart file
 class StoreAllRentalsInfo {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Function to save form data to Firestore
-  Future<bool> saveRentalsDetails(Map<String, dynamic> rentalsData) async {
+  // 1. Helper to generate the ID cleanly
+  String getRentalId(String uid) {
+    return _db.collection('rentals').doc(uid).collection('items').doc().id;
+  }
+
+  // 2. Your existing save function (updated to accept the generated ID)
+  Future<bool> saveRentalsDetails(Map<String, dynamic> rentalsData, String itemId) async {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
-      // It auto-generates a unique Document ID for this entry
-      await _db.collection('rentals').doc(uid).set(rentalsData);
+
+      await _db
+          .collection('rentals')
+          .doc(uid)
+          .collection('items')
+          .doc(itemId) // Use the generated ID here
+          .set(rentalsData);
+
       return true;
     } catch (e) {
-      // Log the error for debugging
       print('Error saving rentals data to Firestore: $e');
       return false;
     }

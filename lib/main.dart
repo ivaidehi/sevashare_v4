@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sevashare_v4/auth_screens/login_screen.dart';
-import 'package:sevashare_v4/providers/user_provider.dart';
+import 'package:sevashare_v4/providers/rentals_provider.dart';
+import 'package:sevashare_v4/providers/service_provider.dart';
 import 'package:sevashare_v4/screens/add_rentals_screen.dart';
 import 'package:sevashare_v4/screens/add_service_screen.dart';
 import 'package:sevashare_v4/screens/bookings_screen.dart';
@@ -27,6 +28,8 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => ServicesProvider()),
+        ChangeNotifierProvider(create: (_) => RentalsProvider()),
       ],
       child: const MyApp(),
     ),

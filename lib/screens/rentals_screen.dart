@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sevashare_v4/screens/services_screen.dart';
-
 import '../custom_widgets/custom_appbar.dart';
 import '../styles/appstyles.dart';
 
@@ -14,6 +13,9 @@ class RentalsScreen extends StatefulWidget {
 class _RentalsScreenState extends State<RentalsScreen> {
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double cardWidth = (screenWidth - 60) / 2;
+
     return Scaffold(
       appBar: CustomAppBar(
         title: "Rentals",
@@ -24,139 +26,300 @@ class _RentalsScreenState extends State<RentalsScreen> {
           );
         },
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 80),
+      backgroundColor: AppStyles.bgColor,
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Trending Rentals Section
+
+              const SizedBox(height: 15),
+
+              // ================= SEARCH BAR =================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search rental items...',
+                      border: InputBorder.none,
+                      prefixIcon:
+                      Icon(Icons.search, color: AppStyles.primaryColor),
+                      contentPadding:
+                      const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              // ================= CATEGORIES =================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Categories',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppStyles.primaryColor,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    _buildCategoryItem(
+                        icon: Icons.home, label: 'Home', color: Colors.blue),
+                    _buildCategoryItem(
+                        icon: Icons.build, label: 'Tools', color: Colors.orange),
+                    _buildCategoryItem(
+                        icon: Icons.electrical_services,
+                        label: 'Electronics',
+                        color: Colors.green),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ================= RENTAL ITEMS =================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Available Items',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppStyles.primaryColor,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Trending Rentals',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: AppStyles.primaryColor,
-                      ),
+                    _buildRentalCard(
+                      width: cardWidth,
+                      name: 'Drill Machine',
+                      category: 'Tool',
+                      price: '\$10/day',
+                      owner: 'Rahul Sharma',
+                      condition: 'Good',
+                      distance: '1.5 km',
+                      imageUrl:
+                      'https://images.unsplash.com/photo-1597852074816-d933c7d2b988',
                     ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'See All',
-                        style: TextStyle(
-                          color: AppStyles.secondaryColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    _buildRentalCard(
+                      width: cardWidth,
+                      name: 'Vacuum Cleaner',
+                      category: 'Home',
+                      price: '\$8/day',
+                      owner: 'Priya Patel',
+                      condition: 'Excellent',
+                      distance: '2.2 km',
+                      imageUrl:
+                      'https://images.unsplash.com/photo-1581578731548-c64695cc6952',
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
 
-              // Rental Categories
+              const SizedBox(height: 15),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildRentalCategory(
-                      title: 'Home',
-                      itemCount: '12 items',
-                      color: Colors.blue[50]!,
-                      iconColor: Colors.blue,
+                    _buildRentalCard(
+                      width: cardWidth,
+                      name: 'DSLR Camera',
+                      category: 'Electronics',
+                      price: '\$20/day',
+                      owner: 'Amit Verma',
+                      condition: 'Very Good',
+                      distance: '3.0 km',
+                      imageUrl:
+                      'https://images.unsplash.com/photo-1516035069371-29a1b244cc32',
                     ),
-                    const SizedBox(height: 12),
-                    _buildRentalCategory(
-                      title: 'Tools',
-                      itemCount: '8 items',
-                      color: Colors.green[50]!,
-                      iconColor: Colors.green,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildRentalCategory(
-                      title: 'Electronics',
-                      itemCount: '15 items',
-                      color: Colors.orange[50]!,
-                      iconColor: Colors.orange,
+                    _buildRentalCard(
+                      width: cardWidth,
+                      name: 'Ladder',
+                      category: 'Tool',
+                      price: '\$5/day',
+                      owner: 'Sanjay Mehta',
+                      condition: 'Good',
+                      distance: '1.8 km',
+                      imageUrl:
+                      'https://images.unsplash.com/photo-1503387762-592deb58ef4e',
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+
+              const SizedBox(height: 30),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-Widget _buildRentalCategory({
-  required String title,
-  required String itemCount,
-  required Color color,
-  required Color iconColor,
-}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.category,
-                  color: iconColor,
-                  size: 20,
-                ),
-              ),
+  // ================= CATEGORY ITEM =================
+  Widget _buildCategoryItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 15),
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(width: 15),
-            Column(
+            child: Icon(icon, size: 26, color: color),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppStyles.primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= RENTAL CARD =================
+  Widget _buildRentalCard({
+    required double width,
+    required String name,
+    required String category,
+    required String price,
+    required String owner,
+    required String condition,
+    required String distance,
+    required String imageUrl,
+  }) {
+    return Container(
+      width: width,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          // IMAGE
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+            child: Image.network(
+              imageUrl,
+              height: 90,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          // DETAILS
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Text(
-                  title,
+                  name,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppStyles.primaryColor,
                   ),
                 ),
+
                 const SizedBox(height: 2),
+
                 Text(
-                  itemCount,
+                  category,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  "Owner: $owner",
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+
+                Text(
+                  "Condition: $condition",
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+
+                Row(
+                  children: [
+                    Icon(Icons.location_on,
+                        size: 12, color: Colors.grey[600]),
+                    const SizedBox(width: 3),
+                    Text(
+                      distance,
+                      style:
+                      TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  price,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                    color: AppStyles.secondaryColor,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-        Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 16,
-          color: Colors.grey[500],
-        ),
-      ],
-    ),
-  );
+          ),
+        ],
+      ),
+    );
+  }
 }

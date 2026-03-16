@@ -15,7 +15,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return PreferredSize(
-      preferredSize: const Size.fromHeight(80.0),
+      preferredSize: const Size.fromHeight(20.0),
       child: AppBar(
         toolbarHeight: 80.0,
         backgroundColor: appBarColor ?? AppStyles.bgColor,
@@ -50,5 +50,5 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(90.0);
+  Size get preferredSize => const Size.fromHeight(70.0);
 }
