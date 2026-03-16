@@ -1,0 +1,29 @@
+   // // Divider
+                      // // Divider(
+                      // //   color: AppStyles.primaryColor.withOpacity(0.2),
+                      // //   height: 1,
+                      // // ),
+                      // // const SizedBox(height: 20),
+                      //
+                      // // Email
+                      // _buildInfoItem(
+                      //   icon: Icons.email_outlined,
+                      //   title: 'Email',
+                      //   value: 'john.doe@example.com',
+                      // ),
+                      // const SizedBox(height: 16),
+                      // //
+                      // // // Phone
+                      // // _buildInfoItem(
+                      // //   icon: Icons.phone_outlined,
+                      // //   title: 'Phone',
+                      // //   value: '+1 (555) 123-4567',
+                      // // ),
+                      // // const SizedBox(height: 16),
+                      // //
+                      // // // Location
+                      // // _buildInfoItem(
+                      // //   icon: Icons.location_on_outlined,
+                      // //   title: 'Location',
+                      // //   value: 'San Francisco, CA',
+                      // // ),
