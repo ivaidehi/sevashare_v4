@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sevashare_v4/screens/services_screen.dart';
 import '../custom_widgets/custom_appbar.dart';
+import '../providers/rentals_provider.dart';
 import '../styles/appstyles.dart';
 
 class RentalsScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class _RentalsScreenState extends State<RentalsScreen> {
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double cardWidth = (screenWidth - 60) / 2;
+    final rentalsProvider = context.watch<RentalsProvider>();
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -63,6 +66,9 @@ class _RentalsScreenState extends State<RentalsScreen> {
               ),
 
               const SizedBox(height: 25),
+
+              // ================= MY RENTALS SECTION =================
+              _buildMyRentalsSection(rentalsProvider),
 
               // ================= CATEGORIES =================
               Padding(
@@ -186,6 +192,85 @@ class _RentalsScreenState extends State<RentalsScreen> {
     );
   }
 
+  // ================= MY RENTALS SECTION =================
+  Widget _buildMyRentalsSection(RentalsProvider rentalsProvider) {
+    if (rentalsProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (rentalsProvider.myRentalsList.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double cardWidth = screenWidth * 0.45;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Rental Items',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppStyles.primaryColor,
+                ),
+              ),
+              TextButton(
+                onPressed: () {},
+                child: Text(
+                  'See All',
+                  style: TextStyle(
+                    color: AppStyles.secondaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: rentalsProvider.myRentalsList.length,
+            itemBuilder: (context, index) {
+              final item = rentalsProvider.myRentalsList[index];
+              final List<dynamic> images = item['item_images'] ?? [];
+              final String imageUrl = images.isNotEmpty ? images[0] : '';
+              final String name = item['item_name'] ?? 'No Name';
+              final String category = item['category'] ?? 'General';
+              final double rentPerDay = (item['rent_per_day'] ?? 0.0).toDouble();
+              final String owner = item['owner_name'] ?? 'Me';
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 15),
+                child: _buildRentalCard(
+                  width: cardWidth,
+                  name: name,
+                  category: category,
+                  price: 'Rs.$rentPerDay/day',
+                  owner: owner,
+                  condition: 'N/A',
+                  distance: '0 km',
+                  imageUrl: imageUrl,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
   // ================= CATEGORY ITEM =================
   Widget _buildCategoryItem({
     required IconData icon,
@@ -249,12 +334,24 @@ class _RentalsScreenState extends State<RentalsScreen> {
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
             ),
-            child: Image.network(
-              imageUrl,
-              height: 90,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
+            child: imageUrl.startsWith('http')
+                ? Image.network(
+                    imageUrl,
+                    height: 90,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 90,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.image, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    height: 90,
+                    width: double.infinity,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  ),
           ),
 
           // DETAILS
@@ -271,6 +368,8 @@ class _RentalsScreenState extends State<RentalsScreen> {
                     fontWeight: FontWeight.w600,
                     color: AppStyles.primaryColor,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
 
                 const SizedBox(height: 2),
@@ -285,6 +384,8 @@ class _RentalsScreenState extends State<RentalsScreen> {
                 Text(
                   "Owner: $owner",
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
 
                 Text(

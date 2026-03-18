@@ -11,7 +11,7 @@ import 'package:sevashare_v4/screens/rentals_screen.dart';
 import 'package:sevashare_v4/custom_widgets/custom_navbar.dart';
 import 'package:sevashare_v4/screens/profile_screen.dart';
 import 'package:sevashare_v4/screens/services_screen.dart';
-import 'package:sevashare_v4/services/firebase_service.dart';
+import 'package:sevashare_v4/services/backend_services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sevashare_v4/styles/appstyles.dart';
 
@@ -23,12 +23,11 @@ import 'auth_screens/onboarding_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  await FirebaseService.initialize();
+  await FirebaseServices.initialize();
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => ServicesProvider()),
+        ChangeNotifierProvider(create: (_) => ServiceProvider()),
         ChangeNotifierProvider(create: (_) => RentalsProvider()),
       ],
       child: const MyApp(),

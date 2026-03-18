@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // 📌 Added Firestore
@@ -6,7 +7,7 @@ import 'package:sevashare_v4/styles/appstyles.dart';
 
 import '../custom_widgets/custom_inputfield.dart';
 import '../providers/service_provider.dart';
-import '../services/firebase_service.dart';
+import '../services/backend_services.dart';
 
 class AddServiceScreen extends StatefulWidget {
   const AddServiceScreen({super.key});
@@ -37,6 +38,8 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
   final TextEditingController _serviceCategoryController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _hourlyRateController = TextEditingController();
+
+  File? _profileImage;
 
   @override
   void dispose() {
@@ -79,9 +82,18 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
     _serviceDescController.clear();
     _experienceController.clear();
     _hourlyRateController.clear();
+    setState(() {
+      _profileImage = null;
+    });
+  }
 
-    // Optional: If you add the image picker back later, clear it like this:
-    // setState(() { _profileImage = null; });
+  Future<void> _pickProfileImage() async {
+    final File? pickedImage = await ImagePickerService.pickSingleImage();
+    if (pickedImage != null) {
+      setState(() {
+        _profileImage = pickedImage;
+      });
+    }
   }
 
   // 📌 Form Submission & Validation Logic
@@ -111,45 +123,57 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         return;
       }
 
-      final servicesProvider = Provider.of<ServicesProvider>(context, listen: false);
-      final String serviceId = servicesProvider.generateServiceId(currentUser.uid);
+      try {
+        String? profileImageUrl;
+        if (_profileImage != null) {
+          _showSnackBar('Uploading profile image...');
+          profileImageUrl = await ImgBBService.uploadImage(_profileImage!);
+        }
 
-      // 3. Map all values into a dictionary
-      final Map<String, dynamic> serviceData = {
-        'currentUser_uid': currentUser.uid, // ✨ Added the UID here!
-        'service_id': serviceId, // ✨ Added the UID here!
-        'full_name': _fullNameController.text.trim(),
-        'contact_no': _contactNoController.text.trim(),
-        'address': {
-          'house_area': _houseAreaController.text.trim(),
-          'road_landmark': _roadLandmarkController.text.trim(),
-          'city': _cityController.text.trim(),
-          'state': _stateController.text.trim(),
-          'pincode': _pincodeController.text.trim(),
-        },
-        'profession': _professionController.text.trim(),
-        'service_category': _serviceCategoryController.text.trim(),
-        'service_description': _serviceDescController.text.trim(),
-        // Convert numbers safely, default to 0 if parsing fails
-        'experience_years': int.tryParse(_experienceController.text.trim()) ?? 0,
-        'hourly_rate': double.tryParse(_hourlyRateController.text.trim()) ?? 0.0,
-        'created_at': FieldValue.serverTimestamp(), // Save exact time of creation
-      };
+        final servicesProvider = Provider.of<ServiceProvider>(context, listen: false);
+        final String serviceId = servicesProvider.generateServiceId(currentUser.uid);
 
-      // 4. Send to Firestore
-      final bool success = await _firestoreService.saveServiceDetails(serviceData, serviceId);
+        // 3. Map all values into a dictionary
+        final Map<String, dynamic> serviceData = {
+          'currentUser_uid': currentUser.uid, // ✨ Added the UID here!
+          'service_id': serviceId, // ✨ Added the UID here!
+          'profile_image_url': profileImageUrl,
+          'full_name': _fullNameController.text.trim(),
+          'contact_no': _contactNoController.text.trim(),
+          'address': {
+            'house_area': _houseAreaController.text.trim(),
+            'road_landmark': _roadLandmarkController.text.trim(),
+            'city': _cityController.text.trim(),
+            'state': _stateController.text.trim(),
+            'pincode': _pincodeController.text.trim(),
+          },
+          'profession': _professionController.text.trim(),
+          'service_category': _serviceCategoryController.text.trim(),
+          'service_description': _serviceDescController.text.trim(),
+          // Convert numbers safely, default to 0 if parsing fails
+          'experience_years': int.tryParse(_experienceController.text.trim()) ?? 0,
+          'hourly_rate': double.tryParse(_hourlyRateController.text.trim()) ?? 0.0,
+          'created_at': FieldValue.serverTimestamp(), // Save exact time of creation
+        };
 
-      setState(() => _isLoading = false);
+        // 4. Send to Firestore
+        final bool success = await _firestoreService.saveServiceDetails(serviceData, serviceId);
+
+        setState(() => _isLoading = false);
 
 
-      // 6. Handle the result
-      if (success) {
-        _showSnackBar('Service added successfully!');
-        _clearForm();
-        // Optional: clear the form or pop the screen
-        // Navigator.pop(context);
-      } else {
-        _showSnackBar('Failed to save service. Please try again.', isError: true);
+        // 6. Handle the result
+        if (success) {
+          _showSnackBar('Service added successfully!');
+          _clearForm();
+          // Optional: clear the form or pop the screen
+          // Navigator.pop(context);
+        } else {
+          _showSnackBar('Failed to save service. Please try again.', isError: true);
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        _showSnackBar('An error occurred: $e', isError: true);
       }
 
     } else {
@@ -203,6 +227,36 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                   children: [
                     // SECTION A: Personal Details
                     _buildSectionHeader('> Personal Details'),
+
+                    // 📸 Profile Image Picker
+                    Center(
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: _pickProfileImage,
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage: _profileImage != null
+                                  ? FileImage(_profileImage!)
+                                  : null,
+                              child: _profileImage == null
+                                  ? Icon(Icons.add_a_photo, color: Colors.grey[600], size: 35)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (_profileImage != null)
+                            TextButton(
+                              onPressed: () => setState(() => _profileImage = null),
+                              child: Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                            )
+                          else
+                            Text('Add Profile Photo', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
                     CustomInputField(
                       controller: _fullNameController,

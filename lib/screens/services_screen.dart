@@ -15,7 +15,7 @@ class ServicesScreen extends StatefulWidget {
 class _ServicesScreenState extends State<ServicesScreen> {
   late final double screenWidth = MediaQuery.of(context).size.width;
   late final double cardWidth = (screenWidth - 20) / 2;
-  late final userProvider = context.watch<UserProvider>();
+  late final serviceProvider = context.watch<ServiceProvider>();
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +23,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top banner with greeting
+          // 📌 Top banner with greeting Hello Header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -57,7 +57,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello ${userProvider.fullName}',
+                          'Hello ${serviceProvider.fullName}',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -129,7 +129,87 @@ class _ServicesScreenState extends State<ServicesScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Services Section
+          // 📌 My Services Section
+          // 📌 My Services Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'My Services',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: AppStyles.primaryColor, // Ensure AppStyles is imported
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: Text(
+                    'See All',
+                    style: TextStyle(
+                      color: AppStyles.secondaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+// Dynamic List Rendering
+          serviceProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : serviceProvider.myServicesList.isEmpty
+              ? const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              "You haven't added any services yet.",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          )
+              : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                // Map through the Firestore data to generate cards dynamically
+                children: serviceProvider.myServicesList.map((service) {
+
+                  // Extract data with safe fallbacks
+                  final String name = service['full_name'] ?? 'No Name';
+                  final String profession = service['profession'] ?? 'Professional';
+                  final double hourlyRate = (service['hourly_rate'] ?? 0.0).toDouble();
+                  final String imageUrl = service['profile_image_url'] ?? '';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12.0), // Replaces the SizedBox spacer
+                    child: _buildProviderCard(
+                      width: MediaQuery.of(context).size.width * 0.6,
+                      name: name,
+                      profession: profession,
+                      price: 'Rs.$hourlyRate/hr',
+
+                      // Handle missing images safely with a fallback placeholder
+                      imageUrl: imageUrl.isNotEmpty
+                          ? imageUrl
+                          : 'https://images.unsplash.com/photo-1598257006458-087169a1f08d',
+
+                      // Hardcoded for now unless you save these to Firestore later
+                      rating: '4.9',
+                      reviewCount: '0',
+                      distance: 'N/A',
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+
+          // 📌 Services Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -199,7 +279,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
           ),
           // const SizedBox(height: 10),
 
-          // Nearby Providers Section
+          // 📌 Nearby Providers Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -236,13 +316,13 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 children: [
                   _buildProviderCard(
                     width: MediaQuery.of(context).size.width * 0.6,
-                    name: 'Alex Johnson',
-                    profession: 'Plumber',
+                    name: serviceProvider.fullName,
+                    profession: serviceProvider.profession,
                     rating: '4.9',
                     imageUrl:
-                    'https://images.unsplash.com/photo-1581578731548-c64695cc6952',
+                    serviceProvider.profileImageUrl,
                     distance: '2.4 km',
-                    price: '\$40/hr', reviewCount: '45',
+                    price: 'Rs.${serviceProvider.hourlyRate}/hr', reviewCount: '45',
                   ),
                   const SizedBox(width: 12),
                   _buildProviderCard(
@@ -261,7 +341,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
           ),
           const SizedBox(height: 30),
 
-          // Provider Card
+          // Provider Card - spare
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.all(16),

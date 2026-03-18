@@ -18,7 +18,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   // 1. Create an instance of your AuthService at the top of your State class
   final AuthService _authService = AuthService();
-  late final userProvider = context.watch<UserProvider>();
+  late final serviceProvider = context.watch<ServiceProvider>();
 
   String _locationAddress = 'Detect Location';
   bool _isLoadingLocation = false;
@@ -191,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                userProvider.fullName,
+                                serviceProvider.fullName,
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w700,
@@ -214,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    userProvider.profession,
+                                    serviceProvider.profession,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,

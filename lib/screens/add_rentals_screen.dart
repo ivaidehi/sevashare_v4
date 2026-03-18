@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:sevashare_v4/styles/appstyles.dart';
 import '../custom_widgets/custom_inputfield.dart';
 import '../providers/rentals_provider.dart';
-import '../services/firebase_service.dart';
+import '../services/backend_services.dart';
 
 class AddRentalItemScreen extends StatefulWidget {
   const AddRentalItemScreen({super.key});
@@ -35,9 +34,9 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
   final TextEditingController _rentPerHourController = TextEditingController();
   final TextEditingController _rentPerDayController = TextEditingController();
   final TextEditingController _securityDepositController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _deliveryChargeController =
-      TextEditingController();
+  TextEditingController();
 
   // --- Section 2: Ownership Details Controllers ---
   final TextEditingController _ownerNameController = TextEditingController();
@@ -137,6 +136,7 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
     setState(() {
       _offerDelivery = true;
       _invoiceBillImg = null;
+      _rentalItemImages.clear();
     });
   }
 
@@ -149,8 +149,14 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         );
         return;
       }
-      if (_pincodeController.text.trim().length != 6) {
-        _showSnackBar('Please enter a valid 6-digit pincode.', isError: true);
+      // if (_pincodeController.text.trim().length != 6) {
+      //   _showSnackBar('Please enter a valid 6-digit pincode.', isError: true);
+      //   return;
+      // }
+
+      // Check if at least one item image is selected
+      if (_rentalItemImages.isEmpty) {
+        _showSnackBar('Please add at least one item image.', isError: true);
         return;
       }
 
@@ -166,61 +172,84 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         return;
       }
 
-      // 1. Invoke the Provider to fetch the generated ID
-      final rentalsProvider = Provider.of<RentalsProvider>(context, listen: false);
-      final String rentalItemId = rentalsProvider.generateRentalItemId(currentUser.uid);
+      try {
+        // Show uploading message
+        _showSnackBar('Uploading images... Please wait.');
 
-      // Map all values into a dictionary
-      final Map<String, dynamic> rentalData = {
-        'rental_item_id': rentalItemId,
-        'currentUser_uid': currentUser.uid,
-        // Item Details
-        'item_name': _itemNameController.text.trim(),
-        'category': _categoryController.text.trim(),
-        'model_number': _modelNumberController.text.trim(),
-        'description': _descController.text.trim(),
-        'purchase_year': int.tryParse(_purchaseYearController.text.trim()) ?? 0,
-        // Pricing
-        'rent_per_hour':
-            double.tryParse(_rentPerHourController.text.trim()) ?? 0.0,
-        'rent_per_day':
-            double.tryParse(_rentPerDayController.text.trim()) ?? 0.0,
-        'security_deposit':
-            double.tryParse(_securityDepositController.text.trim()) ?? 0.0,
-        'offer_delivery': _offerDelivery,
-        'delivery_charge': _offerDelivery
-            ? (double.tryParse(_deliveryChargeController.text.trim()) ?? 0.0)
-            : 0.0,
-        // Ownership
-        'owner_name': _ownerNameController.text.trim(),
-        'contact_no': _contactNoController.text.trim(),
-        'serial_or_proof': _serialNumberController.text.trim(),
-        // Location
-        'address': {
-          'house_area': _houseAreaController.text.trim(),
-          'road_landmark': _roadLandmarkController.text.trim(),
-          'city': _cityController.text.trim(),
-          'state': _stateController.text.trim(),
-          'pincode': _pincodeController.text.trim(),
-        },
-        'created_at': FieldValue.serverTimestamp(),
-      };
+        // 1. Upload rental item images to ImgBB
+        List<String> rentalItemImageUrls = [];
+        if (_rentalItemImages.isNotEmpty) {
+          rentalItemImageUrls = await ImgBBService.uploadMultipleImages(_rentalItemImages);
+        }
 
-      // Ensure you add a method called `saveRentalDetails` in your service file!
-      final bool success = await _firestoreService.saveRentalsDetails(
-        rentalData,rentalItemId
-      );
+        // 2. Upload invoice image if selected
+        String? invoiceImageUrl;
+        if (_invoiceBillImg != null) {
+          invoiceImageUrl = await ImgBBService.uploadImage(_invoiceBillImg!);
+        }
 
-      setState(() => _isLoading = false);
+        // 3. Invoke the Provider to fetch the generated ID
+        final rentalsProvider = Provider.of<RentalsProvider>(context, listen: false);
+        final String rentalItemId = rentalsProvider.generateRentalItemId(currentUser.uid);
 
-      if (success) {
-        _showSnackBar('Rental item added successfully!');
-        _clearForm();
-      } else {
-        _showSnackBar(
-          'Failed to add rental item. Please try again.',
-          isError: true,
+        // Map all values into a dictionary
+        final Map<String, dynamic> rentalData = {
+          'rental_item_id': rentalItemId,
+          'currentUser_uid': currentUser.uid,
+          // Item Details
+          'item_name': _itemNameController.text.trim(),
+          'category': _categoryController.text.trim(),
+          'model_number': _modelNumberController.text.trim(),
+          'description': _descController.text.trim(),
+          'purchase_year': int.tryParse(_purchaseYearController.text.trim()) ?? 0,
+          // Images URLs
+          'item_images': rentalItemImageUrls, // Store array of image URLs
+          'invoice_image_url': invoiceImageUrl, // Store single invoice URL
+          // Pricing
+          'rent_per_hour':
+          double.tryParse(_rentPerHourController.text.trim()) ?? 0.0,
+          'rent_per_day':
+          double.tryParse(_rentPerDayController.text.trim()) ?? 0.0,
+          'security_deposit':
+          double.tryParse(_securityDepositController.text.trim()) ?? 0.0,
+          'offer_delivery': _offerDelivery,
+          'delivery_charge': _offerDelivery
+              ? (double.tryParse(_deliveryChargeController.text.trim()) ?? 0.0)
+              : 0.0,
+          // Ownership
+          'owner_name': _ownerNameController.text.trim(),
+          'contact_no': _contactNoController.text.trim(),
+          'serial_or_proof': _serialNumberController.text.trim(),
+          // Location
+          'address': {
+            'house_area': _houseAreaController.text.trim(),
+            'road_landmark': _roadLandmarkController.text.trim(),
+            'city': _cityController.text.trim(),
+            'state': _stateController.text.trim(),
+            'pincode': _pincodeController.text.trim(),
+          },
+          'created_at': FieldValue.serverTimestamp(),
+        };
+
+        // Ensure you add a method called `saveRentalDetails` in your service file!
+        final bool success = await _firestoreService.saveRentalsDetails(
+            rentalData, rentalItemId
         );
+
+        setState(() => _isLoading = false);
+
+        if (success) {
+          _showSnackBar('Rental item added successfully!');
+          _clearForm();
+        } else {
+          _showSnackBar(
+            'Failed to add rental item. Please try again.',
+            isError: true,
+          );
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Error: $e', isError: true);
       }
     } else {
       _showSnackBar('Please fill in all required fields.', isError: true);
@@ -276,109 +305,110 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const SizedBox(height: 8),
                         SizedBox(
                           height: 120,
                           child: _rentalItemImages.isEmpty
                               ? GestureDetector(
-                                  onTap: () => _selectImage(isMultiple: true),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    width: double.infinity,
+                            onTap: () => _selectImage(isMultiple: true),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(15),
+                                border:
+                                Border.all(color: Colors.grey.shade400),
+                              ),
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                      Icons.add_photo_alternate_outlined,
+                                      color: Colors.grey,
+                                      size: 40),
+                                  SizedBox(height: 8),
+                                  Text('Tap to Add Item Images',
+                                      style:
+                                      TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          )
+                              : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _rentalItemImages.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == _rentalItemImages.length) {
+                                return GestureDetector(
+                                  onTap: () =>
+                                      _selectImage(isMultiple: true),
+                                  child: Container(
+                                    width: 100,
+                                    margin:
+                                    const EdgeInsets.only(right: 8),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[100],
-                                      borderRadius: BorderRadius.circular(15),
-                                      border:
-                                          Border.all(color: Colors.grey.shade400),
+                                      color: AppStyles.secondaryColor
+                                          .withOpacity(0.05),
+                                      borderRadius:
+                                      BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: AppStyles.secondaryColor),
                                     ),
-                                    child: const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
                                       children: [
-                                        Icon(
-                                            Icons.add_photo_alternate_outlined,
-                                            color: Colors.grey,
-                                            size: 40),
-                                        SizedBox(height: 8),
-                                        Text('Tap to Add Item Images',
-                                            style:
-                                                TextStyle(color: Colors.grey)),
+                                        Icon(Icons.add_a_photo,
+                                            color:
+                                            AppStyles.secondaryColor),
+                                        const Text("Add More",
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight:
+                                                FontWeight.bold)),
                                       ],
                                     ),
                                   ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: _rentalItemImages.length + 1,
-                                  itemBuilder: (context, index) {
-                                    if (index == _rentalItemImages.length) {
-                                      return GestureDetector(
-                                        onTap: () =>
-                                            _selectImage(isMultiple: true),
-                                        child: Container(
-                                          width: 100,
-                                          margin:
-                                              const EdgeInsets.only(right: 8),
-                                          decoration: BoxDecoration(
-                                            color: AppStyles.secondaryColor
-                                                .withOpacity(0.05),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            border: Border.all(
-                                                color: AppStyles.secondaryColor),
-                                          ),
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.add_a_photo,
-                                                  color:
-                                                      AppStyles.secondaryColor),
-                                              const Text("Add More",
-                                                  style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.bold)),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    }
+                                );
+                              }
 
-                                    return Stack(
-                                      children: [
-                                        Container(
-                                          width: 120,
-                                          margin:
-                                              const EdgeInsets.only(right: 12),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            image: DecorationImage(
-                                              image: FileImage(
-                                                  _rentalItemImages[index]),
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 5,
-                                          right: 17,
-                                          child: GestureDetector(
-                                            onTap: () => setState(() =>
-                                                _rentalItemImages
-                                                    .removeAt(index)),
-                                            child: CircleAvatar(
-                                              radius: 12,
-                                              backgroundColor:
-                                                  Colors.black.withOpacity(0.6),
-                                              child: const Icon(Icons.close,
-                                                  size: 16, color: Colors.white),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
+                              return Stack(
+                                children: [
+                                  Container(
+                                    width: 120,
+                                    margin:
+                                    const EdgeInsets.only(right: 12),
+                                    decoration: BoxDecoration(
+                                      borderRadius:
+                                      BorderRadius.circular(12),
+                                      image: DecorationImage(
+                                        image: FileImage(
+                                            _rentalItemImages[index]),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 5,
+                                    right: 17,
+                                    child: GestureDetector(
+                                      onTap: () => setState(() =>
+                                          _rentalItemImages
+                                              .removeAt(index)),
+                                      child: CircleAvatar(
+                                        radius: 12,
+                                        backgroundColor:
+                                        Colors.black.withOpacity(0.6),
+                                        child: const Icon(Icons.close,
+                                            size: 16, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         ),
                         if (_rentalItemImages.isNotEmpty)
                           Padding(
@@ -556,7 +586,7 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                       warning: 'Please enter your contact number',
                       keyboardType: TextInputType.phone,
                       prefixIcon:
-                          Icon(Icons.phone, color: AppStyles.secondaryColor),
+                      Icon(Icons.phone, color: AppStyles.secondaryColor),
                     ),
                     const SizedBox(height: 16),
 
@@ -578,108 +608,158 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                       children: [
                         _invoiceBillImg == null
                             ? InkWell(
-                                onTap: () => _selectImage(isMultiple: true),
-                                borderRadius: BorderRadius.circular(12),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[50],
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: AppStyles.primaryColor_light,
+                          onTap: () => _selectImage(isMultiple: false), // Fixed: Changed to false for single image
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppStyles.primaryColor_light,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: AppStyles.secondaryColor,
+                                  size: 26,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Upload Invoice / Bill Photo',
+                                    style: TextStyle(
+                                      color: Colors.grey[800],
+                                      fontSize: 15,
                                     ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.add_photo_alternate_outlined,
-                                        color: AppStyles.secondaryColor,
-                                        size: 26,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'Upload Invoice / Bill Photo',
-                                          style: TextStyle(
-                                            color: Colors.grey[800],
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
-                              )
+                              ],
+                            ),
+                          ),
+                        )
                             : Stack(
-                                children: [
-                                  InkWell(
-                                    onTap: () =>
-                                        _selectImage(isMultiple: false),
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                            color: Colors.green.shade300),
-                                        image: DecorationImage(
-                                          image: FileImage(_invoiceBillImg!),
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
+                          children: [
+                            InkWell(
+                              onTap: () =>
+                                  _selectImage(isMultiple: false),
+                              borderRadius: BorderRadius.circular(12),
+                              child: AnimatedContainer(
+                                duration:
+                                const Duration(milliseconds: 300),
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: Colors.green.shade300),
+                                  image: DecorationImage(
+                                    image: FileImage(_invoiceBillImg!),
+                                    fit: BoxFit.cover,
                                   ),
-                                  Positioned(
-                                    top: 5,
-                                    right: 5,
-                                    child: GestureDetector(
-                                      onTap: () => setState(
-                                          () => _invoiceBillImg = null),
-                                      child: CircleAvatar(
-                                        radius: 12,
-                                        backgroundColor:
-                                            Colors.black.withOpacity(0.6),
-                                        child: const Icon(Icons.close,
-                                            size: 16, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.5),
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(12),
-                                          bottomRight: Radius.circular(12),
-                                        ),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: const Text(
-                                        "Invoice",
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
+                            ),
+                            Positioned(
+                              top: 5,
+                              right: 5,
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                        () => _invoiceBillImg = null),
+                                child: CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor:
+                                  Colors.black.withOpacity(0.6),
+                                  child: const Icon(Icons.close,
+                                      size: 16, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  borderRadius: const BorderRadius.only(
+                                    bottomLeft: Radius.circular(12),
+                                    bottomRight: Radius.circular(12),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 4),
+                                child: const Text(
+                                  "Invoice",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 20),
+
+                    // SECTION 3: Location Details
+                    // _buildSectionHeader('> Location Details'),
+                    //
+                    // CustomInputField(
+                    //   controller: _houseAreaController,
+                    //   labelText: 'House/Area',
+                    //   warning: 'Please enter house/area',
+                    //   prefixIcon: Icon(
+                    //     Icons.home_outlined,
+                    //     color: AppStyles.secondaryColor,
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 16),
+                    //
+                    // CustomInputField(
+                    //   controller: _roadLandmarkController,
+                    //   labelText: 'Road/Landmark',
+                    //   warning: 'Please enter road/landmark',
+                    // ),
+                    // const SizedBox(height: 16),
+                    //
+                    // Row(
+                    //   children: [
+                    //     Expanded(
+                    //       child: CustomInputField(
+                    //         controller: _cityController,
+                    //         labelText: 'City',
+                    //         warning: 'Required',
+                    //       ),
+                    //     ),
+                    //     const SizedBox(width: 16),
+                    //     Expanded(
+                    //       child: CustomInputField(
+                    //         controller: _stateController,
+                    //         labelText: 'State',
+                    //         warning: 'Required',
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                    // const SizedBox(height: 16),
+                    //
+                    // CustomInputField(
+                    //   controller: _pincodeController,
+                    //   labelText: 'Pincode',
+                    //   warning: 'Please enter pincode',
+                    //   keyboardType: TextInputType.number,
+                    // ),
+                    // const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -706,8 +786,8 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                 child: ElevatedButton(
                   style: AppStyles.primaryButtonStyle.copyWith(
                     backgroundColor: WidgetStateProperty.resolveWith<Color>((
-                      Set<WidgetState> states,
-                    ) {
+                        Set<WidgetState> states,
+                        ) {
                       if (states.contains(WidgetState.disabled)) {
                         return Colors.grey[300]!;
                       }
@@ -717,17 +797,17 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                   onPressed: _isLoading ? null : _submitForm,
                   child: _isLoading
                       ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
                       : const Text(
-                          'Add Rental Item',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
-                        ),
+                    'Add Rental Item',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
                 ),
               ),
             ),
