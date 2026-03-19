@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../styles/appstyles.dart';
+import '../providers/user_provider.dart';
+import '../utils/calculate_distance.dart';
 
 class ServiceProviderCard extends StatelessWidget {
   final double width;
@@ -10,8 +13,10 @@ class ServiceProviderCard extends StatelessWidget {
   final String rating;
   final String reviewCount;
   final String imageUrl;
-  final String distance;
   final String price;
+  final double? providerLat;
+  final double? providerLon;
+  final double? distance; // Optional pre-calculated distance
 
   const ServiceProviderCard({
     super.key,
@@ -21,12 +26,26 @@ class ServiceProviderCard extends StatelessWidget {
     required this.rating,
     required this.reviewCount,
     required this.imageUrl,
-    required this.distance,
     required this.price,
+    this.providerLat,
+    this.providerLon,
+    this.distance,
   });
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    
+    // Use passed distance or calculate in real-time using provider coordinates
+    final double distanceKm = distance ?? CalculateDistance.calculateDistance(
+      userProvider.latitude,
+      userProvider.longitude,
+      providerLat,
+      providerLon,
+    );
+
+    final String displayDistance = CalculateDistance.formatDistance(distanceKm);
+
     final String effectiveImageUrl = imageUrl.isNotEmpty
         ? imageUrl
         : 'https://images.unsplash.com/photo-1598257006458-087169a1f08d';
@@ -84,41 +103,47 @@ class ServiceProviderCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Service Name
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Text(
-                        name,
+                        profession,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
                       ),
                     ),
+                    // Rating & Comments count
                     Row(
                       children: [
                         const Icon(Icons.star, color: Color(0xFF1E293B), size: 14),
-                        const SizedBox(width: 4),
+                        // const SizedBox(width: 4),
                         Text(rating, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
                         Text(' ($reviewCount)', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                       ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(profession, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                const SizedBox(height: 12),
+                // const SizedBox(height: 4),
+
+                // Profession
+                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                const SizedBox(height: 5),
+
+                // location & price
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[500]),
+                        Icon(Icons.location_on_outlined, size: 14, color: Colors.black),
                         const SizedBox(width: 4),
-                        Text(distance, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                        Text(displayDistance, style: TextStyle(fontSize: 12, color: Colors.black)),
                       ],
                     ),
+                    Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
                   ],
                 ),
               ],

@@ -14,6 +14,10 @@ class UserProvider with ChangeNotifier {
   DateTime? _createdAt;
   String _lastKnownLocation = 'Detecting location...';
 
+  // New Location Variables
+  double? _latitude;
+  double? _longitude;
+
   bool _isLoading = true;
 
   // 2. GETTERS
@@ -26,6 +30,8 @@ class UserProvider with ChangeNotifier {
   DateTime? get createdAt => _createdAt;
   bool get isLoading => _isLoading;
   String get lastKnownLocation => _lastKnownLocation;
+  double? get latitude => _latitude;
+  double? get longitude => _longitude;
 
   // Constructor starts listening to data
   UserProvider() {
@@ -51,6 +57,10 @@ class UserProvider with ChangeNotifier {
             _userType = data['userType'] ?? 'user';
             _emailVerified = data['emailVerified'] ?? false;
             _lastKnownLocation = data['last_known_location'] ?? 'Location not set';
+            
+            // Fetch Lat/Long from user document
+            _latitude = data['latitude'] != null ? (data['latitude'] as num).toDouble() : null;
+            _longitude = data['longitude'] != null ? (data['longitude'] as num).toDouble() : null;
 
             if (data['createdAt'] != null) {
               _createdAt = (data['createdAt'] as Timestamp).toDate();
@@ -73,6 +83,9 @@ class UserProvider with ChangeNotifier {
     final addressDetails = await LocationService.getUserAddressWithDetails();
     if (addressDetails != null) {
       _lastKnownLocation = addressDetails['fullAddress'];
+      // Update local state coordinates if they were just detected
+      _latitude = addressDetails['latitude'];
+      _longitude = addressDetails['longitude'];
       notifyListeners();
     }
   }
@@ -86,6 +99,8 @@ class UserProvider with ChangeNotifier {
     _emailVerified = false;
     _createdAt = null;
     _lastKnownLocation = 'Location not set';
+    _latitude = null;
+    _longitude = null;
     _isLoading = false;
     notifyListeners();
   }

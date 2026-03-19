@@ -18,22 +18,40 @@ class _DetectLocationFieldState extends State<DetectLocationField> {
   bool _isLoading = false;
 
   Future<void> _handleDetectLocation() async {
+    // 1. Immediate UI update from cache (even if potentially stale)
+    // This improves perceived performance significantly.
+    final cache = LocationService.cachedAddress;
+    if (cache != null) {
+      widget.onLocationDetected(cache);
+      // We still continue to fetch fresh location in the background if needed.
+    }
+
     setState(() => _isLoading = true);
     try {
+      // 2. Optimized fetch: uses last known position and high accuracy instead of best
       final addressDetails = await LocationService.getUserAddressWithDetails();
+      
       if (addressDetails != null) {
+        // 3. Update with fresh data if it differs from cache
         widget.onLocationDetected(addressDetails);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not detect location. Please try again.')),
-        );
+      } else if (cache == null) {
+        // Only show error if we have no data at all (neither cache nor fresh)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not detect location. Please try again.')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -65,7 +83,6 @@ class _DetectLocationFieldState extends State<DetectLocationField> {
             ),
           ),
         ),
-        const Divider(height: 40, thickness: 1),
       ],
     );
   }

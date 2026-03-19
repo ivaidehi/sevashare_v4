@@ -12,29 +12,63 @@ class LocationPermissionScreen extends StatefulWidget {
   State<LocationPermissionScreen> createState() => _LocationPermissionScreenState();
 }
 
-class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
+// 1. Add WidgetsBindingObserver to detect when user returns to the app
+class _LocationPermissionScreenState extends State<LocationPermissionScreen> with WidgetsBindingObserver {
   bool _isChecking = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // 2. Register the observer
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    // 3. Unregister the observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // 4. This fires whenever the app is resumed (e.g., returning from Settings)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _silentCheckPermission();
+    }
+  }
+
+  /// Automatically checks status without showing loaders/snackbars unless necessary
+  Future<void> _silentCheckPermission() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+      widget.onPermissionGranted();
+    }
+  }
+
   Future<void> _requestPermission() async {
+    if (_isChecking) return;
     setState(() => _isChecking = true);
-    
-    // Check if service is enabled first
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Please turn on your device location.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppStyles.secondaryColor,
         ),
       );
       await Geolocator.openLocationSettings();
+      // Logic stops here until user returns
       setState(() => _isChecking = false);
       return;
     }
 
-    // Try to ensure permissions
     bool granted = await LocationService.ensurePermissions();
-    
+
     if (granted) {
       widget.onPermissionGranted();
     } else {
@@ -47,21 +81,15 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
           ),
         );
         await Geolocator.openAppSettings();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location access is mandatory for using Seva Share.'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
     }
-    
-    setState(() => _isChecking = false);
+
+    if (mounted) setState(() => _isChecking = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    // UI remains the same...
     return Scaffold(
       backgroundColor: Colors.white,
       body: Padding(
@@ -75,30 +103,18 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
                 color: AppStyles.secondaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.location_on,
-                size: 80,
-                color: AppStyles.secondaryColor,
-              ),
+              child: Icon(Icons.location_on, size: 80, color: AppStyles.secondaryColor),
             ),
             const SizedBox(height: 40),
             Text(
               'Location Access Required',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppStyles.primaryColor,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppStyles.primaryColor),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             Text(
               'To provide you with the best services nearby, Seva Share needs access to your location. This is mandatory for using the app.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                height: 1.5,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[600], height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 60),
@@ -109,20 +125,14 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
                 onPressed: _isChecking ? null : _requestPermission,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppStyles.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 child: _isChecking
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        'Enable Location Access',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                  'Enable Location Access',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
               ),
             ),
           ],

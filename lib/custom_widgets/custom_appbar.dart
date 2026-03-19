@@ -3,24 +3,28 @@ import 'package:sevashare_v4/styles/appstyles.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final String? subtitle;
   final VoidCallback onBackPressed;
+  final VoidCallback? onSubtitlePressed; // New parameter for subtitle click
   final VoidCallback? onMenuPressed;
-  final IconData? actionIcon; // New parameter for the right-side icon
+  final IconData? actionIcon;
   final Color? appBarColor;
 
   const CustomAppBar({
     super.key,
     required this.title,
+    this.subtitle,
+    this.onSubtitlePressed, // Initialize new parameter
     required this.onBackPressed,
     this.onMenuPressed,
-    this.actionIcon, // Pass this if you want something other than the menu
+    this.actionIcon,
     this.appBarColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      toolbarHeight: 80.0,
+      toolbarHeight: 90.0,
       backgroundColor: appBarColor ?? AppStyles.bgColor,
       elevation: 0,
       centerTitle: false,
@@ -28,7 +32,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
       // Back Button
       leading: Padding(
-        padding: const EdgeInsets.only(left: 14, top: 25),
+        padding: const EdgeInsets.only(left: 14, top: 15),
         child: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: onBackPressed,
@@ -36,32 +40,59 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
 
-      // Title
+      // Title and Subtitle
       title: Padding(
-        padding: const EdgeInsets.only(top: 25),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            color: AppStyles.primaryColor,
-          ),
+        padding: const EdgeInsets.only(top: 15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: AppStyles.primaryColor,
+              ),
+            ),
+            if (subtitle != null && subtitle!.isNotEmpty)
+              GestureDetector(
+                onTap: onSubtitlePressed, // Trigger the callback here
+                behavior: HitTestBehavior.opaque, // Makes the whole row clickable
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: Colors.redAccent,
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
 
-      // Action Icon at the top right (Dynamic)
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 14, top: 25),
+          padding: const EdgeInsets.only(right: 14, top: 15),
           child: IconButton(
-            // Uses actionIcon if provided, otherwise defaults to menu_rounded
             icon: Icon(
               actionIcon ?? Icons.menu_rounded,
               size: 28,
               color: AppStyles.primaryColor,
             ),
             onPressed: onMenuPressed ?? () {
-              // Default logic to open drawer
               Scaffold.of(context).openEndDrawer();
             },
           ),
@@ -71,5 +102,5 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(80.0);
+  Size get preferredSize => const Size.fromHeight(90.0);
 }

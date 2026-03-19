@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import 'package:sevashare_v4/styles/appstyles.dart';
 
 import '../custom_widgets/custom_inputfield.dart';
+import '../custom_widgets/detect_location_field.dart';
 import '../providers/service_provider.dart';
 import '../services/backend_services.dart';
+import '../services/location_service.dart';
 
 class AddServiceScreen extends StatefulWidget {
   const AddServiceScreen({super.key});
@@ -131,6 +133,24 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
 
       setState(() => _isLoading = true);
 
+      // 📌 Latitude & Longitude Detection
+      final String fullAddress = "${_houseAreaController.text.trim()}, "
+          "${_roadLandmarkController.text.trim()}, "
+          "${_cityController.text.trim()}, "
+          "${_stateController.text.trim()}, "
+          "${_pincodeController.text.trim()}";
+
+      final Map<String, double>? coordinates = await LocationService.getCoordinatesFromAddress(fullAddress);
+
+      if (coordinates == null || coordinates['latitude'] == null || coordinates['longitude'] == null) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Enter valid address', isError: true);
+        return;
+      }
+
+      print('service provider latitude: ${coordinates['latitude']}');
+      print('service provider longitude: ${coordinates['longitude']}');
+
       // 📌 NEW 1: Get the current logged-in user
       final User? currentUser = FirebaseAuth.instance.currentUser;
 
@@ -168,6 +188,8 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
             'city': _cityController.text.trim(),
             'state': _stateController.text.trim(),
             'pincode': _pincodeController.text.trim(),
+            'latitude': coordinates['latitude'],
+            'longitude': coordinates['longitude'],
           },
           'profession': _professionController.text.trim(),
           'service_category': finalCategory,
@@ -201,6 +223,16 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
     } else {
       _showSnackBar('Please fill in all required fields.', isError: true);
     }
+  }
+
+  void _onLocationDetected(Map<String, dynamic> details) {
+    setState(() {
+      _houseAreaController.text = details['name'] ?? details['street'] ?? '';
+      _roadLandmarkController.text = details['subLocality'] ?? details['locality'] ?? '';
+      _cityController.text = details['locality'] ?? '';
+      _stateController.text = details['administrativeArea'] ?? '';
+      _pincodeController.text = details['postalCode'] ?? '';
+    });
   }
 
 
@@ -343,18 +375,19 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppStyles.secondaryColor),
-                        ),
-                        onPressed: () {},
-                        icon: Icon(Icons.my_location, color: AppStyles.primaryColor),
-                        label: Text('Detect Location', style: TextStyle(color: AppStyles.primaryColor)),
-                      ),
-                    ),
-                    const Divider(height: 40, thickness: 1),
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   child: OutlinedButton.icon(
+                    //     style: OutlinedButton.styleFrom(
+                    //       side: BorderSide(color: AppStyles.secondaryColor),
+                    //     ),
+                    //     onPressed: () {},
+                    //     icon: Icon(Icons.my_location, color: AppStyles.primaryColor),
+                    //     label: Text('Detect Location', style: TextStyle(color: AppStyles.primaryColor)),
+                    //   ),
+                    // ),
+                    DetectLocationField(onLocationDetected: _onLocationDetected),
+                    const Divider(thickness: 1),
 
                     // SECTION B: Service Details
                     _buildSectionHeader('> Service Details'),

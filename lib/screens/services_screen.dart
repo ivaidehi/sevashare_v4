@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
-import '../custom_widgets/custom_serviceProvider_cardlist.dart';
+import 'package:sevashare_v4/screens/view_all_cards_screen.dart';
+import 'package:sevashare_v4/screens/select_city_screen.dart';
+import '../custom_widgets/service_provider_cardlist.dart';
 import '../providers/service_provider.dart';
 import '../providers/user_provider.dart';
 import '../styles/appstyles.dart';
@@ -16,6 +16,23 @@ class ServicesScreen extends StatefulWidget {
 }
 
 class _ServicesScreenState extends State<ServicesScreen> {
+  String _selectedCity = 'Mumbai';
+
+  void _openCitySelection() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectCityScreen(currentCity: _selectedCity),
+      ),
+    );
+
+    if (result != null && result is String) {
+      setState(() {
+        _selectedCity = result;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final serviceProvider = context.watch<ServiceProvider>();
@@ -64,11 +81,24 @@ class _ServicesScreenState extends State<ServicesScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          'Seva Share | Navi Mumbai',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white.withOpacity(0.8),
+                        GestureDetector(
+                          onTap: _openCitySelection,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Seva Share | $_selectedCity',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 18,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -257,7 +287,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ViewAllCardsScreen(),
+                      ),
+                    );
+                  },
                   child: Text(
                     'View All',
                     style: TextStyle(

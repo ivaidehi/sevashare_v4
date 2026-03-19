@@ -22,6 +22,10 @@ class ServiceProvider with ChangeNotifier {
   double _hourlyRate = 0.0;
   Map<String, dynamic> _address = {};
 
+  // New Location Variables
+  double? _latitude;
+  double? _longitude;
+
   bool _isLoading = true;
   bool _isAllProvidersLoading = true;
 
@@ -45,6 +49,8 @@ class ServiceProvider with ChangeNotifier {
   int get experienceYears => _experienceYears;
   double get hourlyRate => _hourlyRate;
   Map<String, dynamic> get address => _address;
+  double? get latitude => _latitude;
+  double? get longitude => _longitude;
   bool get isLoading => _isLoading;
   bool get isAllProvidersLoading => _isAllProvidersLoading;
 
@@ -93,6 +99,10 @@ class ServiceProvider with ChangeNotifier {
         _experienceYears = (data['experience_years'] ?? 0).toInt();
         _hourlyRate = (data['hourly_rate'] ?? 0.0).toDouble();
         _address = data['address'] ?? {};
+        
+        // Fetch Lat/Long from address map
+        _latitude = _address['latitude'] != null ? (_address['latitude'] as num).toDouble() : null;
+        _longitude = _address['longitude'] != null ? (_address['longitude'] as num).toDouble() : null;
       }
 
       _isLoading = false;
