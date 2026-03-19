@@ -13,16 +13,37 @@ class AuthService {
   // Stream of authentication state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  // Check if username is unique
+  Future<bool> isUsernameUnique(String username) async {
+    try {
+      final result = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: username.trim().toLowerCase())
+          .get();
+      return result.docs.isEmpty;
+    } catch (e) {
+      print('❌ Error checking username uniqueness: $e');
+      return false; // Assume not unique on error for safety
+    }
+  }
+
   // 2. Email/Password Sign Up - COMPLETELY SAFE VERSION
   Future<User?> signUpWithEmail({
     required String email,
     required String password,
     required String mobile,
+    required String username,
     required String userType, // 'user' or 'service_provider'
   }) async {
     try {
       // 1. VALIDATE INPUTS BEFORE ANY FIREBASE CALL
-      _validateSignUpInputs(email, password, mobile, userType);
+      _validateSignUpInputs(email, password, mobile, userType, username: username);
+
+      // Check username uniqueness again before proceeding
+      bool isUnique = await isUsernameUnique(username);
+      if (!isUnique) {
+        throw Exception('Username is already taken');
+      }
 
       // 2. CREATE USER IN FIREBASE AUTH (FIRST STEP)
       UserCredential userCredential;
@@ -46,6 +67,7 @@ class AuthService {
         'uid': user.uid,
         'email': email.trim(),
         'mobile': mobile.trim(),
+        'username': username.trim().toLowerCase(),
         'userType': userType,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -74,6 +96,7 @@ class AuthService {
         print('✅ User created successfully in Auth & Firestore');
         print('📱 User ID: ${user.uid}');
         print('📧 Email: ${user.email}');
+        print('👤 Username: $username');
         print('👤 User Type: $userType');
 
         return user;
@@ -164,8 +187,23 @@ class AuthService {
       String email,
       String password,
       String mobile,
-      String userType
+      String userType,
+      {String? username}
       ) {
+    // Username validation if provided
+    if (username != null) {
+      if (username.isEmpty) {
+        throw Exception('Username is required');
+      }
+      if (username.length < 3) {
+        throw Exception('Username must be at least 3 characters long');
+      }
+      final usernameRegex = RegExp(r'^[a-zA-Z0-9_]+$');
+      if (!usernameRegex.hasMatch(username)) {
+        throw Exception('Username can only contain letters, numbers, and underscores');
+      }
+    }
+
     // Email validation
     final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (email.isEmpty) {

@@ -17,15 +17,19 @@ class FirebaseServices {
   static FirebaseFirestore get firestore => FirebaseFirestore.instance;
 }
 
-// 📌 Select/[ick images from device
+// 📌 Select/pick images from device with optimization
 class ImagePickerService {
   static final ImagePicker _picker = ImagePicker();
 
-  // Pick single image
+  // Pick single image with compression and resizing
   static Future<File?> pickSingleImage() async {
     try {
-      final XFile? pickedFile =
-      await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024, // Limit size to optimize upload and loading speed
+        maxHeight: 1024,
+        imageQuality: 80, // Compress image
+      );
       if (pickedFile != null) {
         return File(pickedFile.path);
       }
@@ -35,10 +39,14 @@ class ImagePickerService {
     return null;
   }
 
-  // Pick multiple images
+  // Pick multiple images with compression and resizing
   static Future<List<File>> pickMultipleImages() async {
     try {
-      final List<XFile> pickedFiles = await _picker.pickMultiImage();
+      final List<XFile> pickedFiles = await _picker.pickMultiImage(
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
       return pickedFiles.map((e) => File(e.path)).toList();
     } catch (e) {
       print("Error picking multiple images: $e");
@@ -76,6 +84,7 @@ class ImgBBService {
         final responseData = await response.stream.bytesToString();
         final jsonData = jsonDecode(responseData);
 
+        // ImgBB returns the direct URL. We could also store jsonData['data']['thumb']['url'] for faster loading of small cards.
         return jsonData['data']['url'];
       } else {
         print('❌ ImgBB Upload Failed: ${response.statusCode}');

@@ -23,23 +23,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingLocation = false;
 
   @override
-  void initState() {
-    super.initState();
-    _autoDetectLocation();
-  }
-
-  Future<void> _autoDetectLocation() async {
-    setState(() => _isLoadingLocation = true);
-    String? address = await LocationService.getUserAddress();
-    if (mounted) {
-      setState(() {
-        _locationAddress = address ?? 'Could not detect location';
-        _isLoadingLocation = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
     final serviceProvider = context.watch<ServiceProvider>();

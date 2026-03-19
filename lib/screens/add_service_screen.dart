@@ -39,6 +39,23 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _hourlyRateController = TextEditingController();
 
+  String? _selectedCategory;
+  final List<String> _categories = [
+    'Other',
+    'Plumbing',
+    'Electrical',
+    'AC Repair & Service',
+    'Carpentry',
+    'Home Cleaning',
+    'Appliance Repair',
+    'Painting & Wall Work',
+    'Pest Control',
+    'RO / Water Purifier Service',
+    'Gardening & Landscaping',
+    'CCTV & Security Installation',
+    'Moving & Packing (Packers & Movers)',
+  ];
+
   File? _profileImage;
 
   @override
@@ -84,6 +101,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
     _hourlyRateController.clear();
     setState(() {
       _profileImage = null;
+      _selectedCategory = null;
     });
   }
 
@@ -133,6 +151,10 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         final servicesProvider = Provider.of<ServiceProvider>(context, listen: false);
         final String serviceId = servicesProvider.generateServiceId(currentUser.uid);
 
+        final String finalCategory = _selectedCategory == 'Other'
+            ? _serviceCategoryController.text.trim()
+            : _selectedCategory ?? '';
+
         // 3. Map all values into a dictionary
         final Map<String, dynamic> serviceData = {
           'currentUser_uid': currentUser.uid, // ✨ Added the UID here!
@@ -148,7 +170,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
             'pincode': _pincodeController.text.trim(),
           },
           'profession': _professionController.text.trim(),
-          'service_category': _serviceCategoryController.text.trim(),
+          'service_category': finalCategory,
           'service_description': _serviceDescController.text.trim(),
           // Convert numbers safely, default to 0 if parsing fails
           'experience_years': int.tryParse(_experienceController.text.trim()) ?? 0,
@@ -345,13 +367,55 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    CustomInputField(
-                      controller: _serviceCategoryController,
-                      labelText: 'Category',
-                      warning: 'Please enter a category (e.g., Cleaning, Plumbing)',
-                      prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
+                    // Category Dropdown
+                    DropdownButtonFormField<String>(
+                      alignment: AlignmentDirectional.bottomStart,
+                      menuMaxHeight: 300,
+                      borderRadius: BorderRadius.circular(12),
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        labelText: 'Service Category',
+                        prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
+                        labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppStyles.secondaryColor, width: 1),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                      items: _categories.map((String category) {
+                        return DropdownMenuItem<String>(
+                          value: category,
+                          child: Text(category, style: const TextStyle(fontSize: 14)),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCategory = newValue;
+                        });
+                      },
+                      validator: (value) => value == null ? 'Please select a category' : null,
                     ),
                     const SizedBox(height: 16),
+
+                    // Show custom input if "Other" is selected
+                    if (_selectedCategory == 'Other') ...[
+                      CustomInputField(
+                        controller: _serviceCategoryController,
+                        labelText: 'Specify Category',
+                        warning: 'Please specify your category',
+                        prefixIcon: Icon(Icons.edit_note, color: AppStyles.secondaryColor),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     CustomInputField(
                       controller: _serviceDescController,

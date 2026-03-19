@@ -13,6 +13,7 @@ class CreateAccountScreen extends StatefulWidget {
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final AuthService _authService = AuthService();
 
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -28,6 +29,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
@@ -60,7 +62,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     });
 
     try {
+      // 1. Check if username is unique
+      final bool isUnique = await _authService.isUsernameUnique(_usernameController.text.trim());
+      if (!isUnique) {
+        setState(() {
+          _errorMessage = 'Username is already taken. Please choose another one.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 2. Proceed with Sign Up
       final user = await _authService.signUpWithEmail(
+        username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
         mobile: _mobileController.text.trim(),
@@ -85,23 +99,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             ),
           ),
         );
-
-          // Navigate to home screen or verify email screen
-          // if (!user.emailVerified) {
-          //   await user.sendEmailVerification();
-          //   // Show verification screen
-          //   _showVerificationDialog();
-          //   // Additional snackbar for verification email
-          //   ScaffoldMessenger.of(context).showSnackBar(
-          //     SnackBar(
-          //       content: Text('Verification email sent to ${user.email}'),
-          //       backgroundColor: Colors.blue,
-          //       duration: Duration(seconds: 4),
-          //     ),
-          //   );
-          // } else {
-          //   Navigator.pushReplacementNamed(context, '/home');
-          // }
       }else{
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -113,7 +110,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }
     } catch (e) {
       setState(() {
-
         // Extract user-friendly error message
         String errorMessage;
         if (e.toString().contains('email-already-in-use')) {
@@ -122,11 +118,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           errorMessage = 'Network error. Check your connection';
         } else if (e.toString().contains('weak-password')) {
           errorMessage = 'Password is too weak. Use at least 8 characters';
+        } else if (e.toString().contains('Username is already taken')) {
+          errorMessage = 'Username is already taken';
         } else {
           errorMessage = 'Failed to create account: ${e.toString().replaceFirst('Exception: ', '')}';
         }
 
-        _errorMessage = e.toString();
+        _errorMessage = errorMessage;
         // Show error snackbar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -350,6 +348,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                 ),
                 const SizedBox(height: 25),
+
+                // Username Field
+                CustomInputField(
+                  controller: _usernameController,
+                  labelText: 'Username',
+                  warning: "Please enter a unique username (min 3 characters)",
+                  keyboardType: TextInputType.text,
+                ),
+                const SizedBox(height: 20),
 
                 // Email Address Field
                 CustomInputField(

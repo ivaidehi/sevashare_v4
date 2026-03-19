@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:sevashare_v4/auth_screens/login_screen.dart';
 import 'package:sevashare_v4/providers/rentals_provider.dart';
 import 'package:sevashare_v4/providers/service_provider.dart';
+import 'package:sevashare_v4/providers/user_provider.dart'; // Added UserProvider
 import 'package:sevashare_v4/screens/add_rentals_screen.dart';
 import 'package:sevashare_v4/screens/add_service_screen.dart';
 import 'package:sevashare_v4/screens/bookings_screen.dart';
@@ -27,6 +28,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()), // Added UserProvider
         ChangeNotifierProvider(create: (_) => ServiceProvider()),
         ChangeNotifierProvider(create: (_) => RentalsProvider()),
       ],

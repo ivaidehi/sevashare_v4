@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
 // Assuming StoreAllServiceInfo is inside this file
 import '../services/backend_services.dart';
 
 class ServiceProvider with ChangeNotifier {
-  // ==========================================
+
   // 1. STATE VARIABLES
-  // ==========================================
-  
-  // List to store all services added by the current user
   List<Map<String, dynamic>> _myServicesList = [];
+  List<Map<String, dynamic>> _allServicesList = [];
   
-  // Fields for the primary/latest service (backward compatibility)
   String _fullName = "Username";
   String _profession = "Profession";
   String _profileImageUrl = "";
@@ -25,14 +23,18 @@ class ServiceProvider with ChangeNotifier {
   Map<String, dynamic> _address = {};
 
   bool _isLoading = true;
+  bool _isAllProvidersLoading = true;
+
+  StreamSubscription? _myServicesSubscription;
+  StreamSubscription? _allServicesSubscription;
+  StreamSubscription? _authSubscription;
 
   // Initialize your backend service
   final StoreAllServiceInfo _servicesService = StoreAllServiceInfo();
 
-  // ==========================================
-  // 2. GETTERS (To read data in UI)
-  // ==========================================
+  // 2. GETTERS
   List<Map<String, dynamic>> get myServicesList => _myServicesList;
+  List<Map<String, dynamic>> get allServicesList => _allServicesList;
   
   String get fullName => _fullName;
   String get profession => _profession;
@@ -44,60 +46,99 @@ class ServiceProvider with ChangeNotifier {
   double get hourlyRate => _hourlyRate;
   Map<String, dynamic> get address => _address;
   bool get isLoading => _isLoading;
+  bool get isAllProvidersLoading => _isAllProvidersLoading;
 
-  // Constructor automatically starts listening to data
   ServiceProvider() {
-    _listenToUserData();
+    _listenToAuthChanges();
+    _listenToAllServices();
   }
 
-  // ==========================================
-  // 3. READ DATA (Real-time Listener)
-  // ==========================================
-  void _listenToUserData() {
-    String? uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      FirebaseFirestore.instance
-          .collection('service_providers')
-          .doc(uid)
-          .collection('services')
-          .orderBy('created_at', descending: true) // Sort by newest first
-          .snapshots()
-          .listen((snapshot) {
-
-        // Store the full list of services
-        _myServicesList = snapshot.docs.map((doc) => doc.data()).toList();
-
-        // Update the legacy fields with the latest service data if available
-        if (_myServicesList.isNotEmpty) {
-          var data = _myServicesList.first;
-
-          _fullName = data['full_name'] ?? 'No Name';
-          _profession = data['profession'] ?? 'Professional';
-          _profileImageUrl = data['profile_image_url'] ?? '';
-          _contactNo = data['contact_no'] ?? '';
-          _serviceCategory = data['service_category'] ?? '';
-          _serviceDescription = data['service_description'] ?? '';
-          _experienceYears = (data['experience_years'] ?? 0).toInt();
-          _hourlyRate = (data['hourly_rate'] ?? 0.0).toDouble();
-          _address = data['address'] ?? {};
-        }
-
+  void _listenToAuthChanges() {
+    _authSubscription?.cancel();
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null) {
+        _listenToMyServices(user.uid);
+      } else {
+        _myServicesSubscription?.cancel();
+        _myServicesList = [];
         _isLoading = false;
         notifyListeners();
-      });
-    }
+      }
+    });
   }
 
-  // ==========================================
-  // 4. WRITE DATA (Save new services)
-  // ==========================================
+  void _listenToMyServices(String uid) {
+    _myServicesSubscription?.cancel();
+    _isLoading = true;
+    notifyListeners();
 
-  // Fetch the ID using the service layer
+    _myServicesSubscription = FirebaseFirestore.instance
+        .collection('service_providers')
+        .doc(uid)
+        .collection('services')
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+
+      _myServicesList = snapshot.docs.map((doc) => doc.data()).toList();
+
+      if (_myServicesList.isNotEmpty) {
+        var data = _myServicesList.first;
+        _fullName = data['full_name'] ?? 'No Name';
+        _profession = data['profession'] ?? 'Professional';
+        _profileImageUrl = data['profile_image_url'] ?? '';
+        _contactNo = data['contact_no'] ?? '';
+        _serviceCategory = data['service_category'] ?? '';
+        _serviceDescription = data['service_description'] ?? '';
+        _experienceYears = (data['experience_years'] ?? 0).toInt();
+        _hourlyRate = (data['hourly_rate'] ?? 0.0).toDouble();
+        _address = data['address'] ?? {};
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    }, onError: (error) {
+      print("Error fetching my services: $error");
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  void _listenToAllServices() {
+    _allServicesSubscription?.cancel();
+    _allServicesSubscription = FirebaseFirestore.instance
+        .collectionGroup('services')
+        .snapshots()
+        .listen((snapshot) {
+      
+      _allServicesList = snapshot.docs.map((doc) => doc.data()).toList();
+      _allServicesList.sort((a, b) {
+        String nameA = (a['full_name'] ?? '').toString().toLowerCase();
+        String nameB = (b['full_name'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+      
+      _isAllProvidersLoading = false;
+      notifyListeners();
+    }, onError: (error) {
+      print("Error fetching all services: $error");
+      _isAllProvidersLoading = false;
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _myServicesSubscription?.cancel();
+    _allServicesSubscription?.cancel();
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
   String generateServiceId(String uid) {
     return _servicesService.getNewServiceId(uid);
   }
 
-  // Wrap the save function
   Future<bool> submitServiceData(Map<String, dynamic> data, String serviceId) async {
     bool isSuccess = await _servicesService.saveServiceDetails(data, serviceId);
     return isSuccess;

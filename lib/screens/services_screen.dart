@@ -1,11 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
+import '../custom_widgets/custom_serviceProvider_cardlist.dart';
 import '../providers/service_provider.dart';
+import '../providers/user_provider.dart';
 import '../styles/appstyles.dart';
-
+import 'add_service_screen.dart';
 
 class ServicesScreen extends StatefulWidget {
-
   const ServicesScreen({super.key});
 
   @override
@@ -13,12 +16,12 @@ class ServicesScreen extends StatefulWidget {
 }
 
 class _ServicesScreenState extends State<ServicesScreen> {
-  late final double screenWidth = MediaQuery.of(context).size.width;
-  late final double cardWidth = (screenWidth - 20) / 2;
-  late final serviceProvider = context.watch<ServiceProvider>();
-
   @override
   Widget build(BuildContext context) {
+    final serviceProvider = context.watch<ServiceProvider>();
+    final userProvider = context.watch<UserProvider>();
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,10 +35,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppStyles.primaryColor,
-                  AppStyles.secondaryColor,
-                ],
+                colors: [AppStyles.primaryColor, AppStyles.secondaryColor],
               ),
               boxShadow: [
                 BoxShadow(
@@ -48,17 +48,16 @@ class _ServicesScreenState extends State<ServicesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 40,),
+                const SizedBox(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Hello, welcome
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello ${serviceProvider.fullName}',
-                          style: TextStyle(
+                          'Hello ${userProvider.username}',
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -74,12 +73,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
                         ),
                       ],
                     ),
-                    // Notifications
                     Container(
                       width: 55,
                       height: 55,
                       decoration: BoxDecoration(
-                        // color: Colors.white.withOpacity(0.2),
                         color: AppStyles.primaryColor_light,
                         shape: BoxShape.circle,
                       ),
@@ -129,89 +126,56 @@ class _ServicesScreenState extends State<ServicesScreen> {
           ),
           const SizedBox(height: 20),
 
-          // 📌 My Services Section
-          // 📌 My Services Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'My Services',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppStyles.primaryColor, // Ensure AppStyles is imported
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'See All',
-                    style: TextStyle(
-                      color: AppStyles.secondaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-// Dynamic List Rendering
-          serviceProvider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : serviceProvider.myServicesList.isEmpty
-              ? const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              "You haven't added any services yet.",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-          )
-              : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+          // 📌 My Services Section (Conditionally rendered based on userType)
+          if (userProvider.userType == "service_provider") ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
               child: Row(
-                // Map through the Firestore data to generate cards dynamically
-                children: serviceProvider.myServicesList.map((service) {
-
-                  // Extract data with safe fallbacks
-                  final String name = service['full_name'] ?? 'No Name';
-                  final String profession = service['profession'] ?? 'Professional';
-                  final double hourlyRate = (service['hourly_rate'] ?? 0.0).toDouble();
-                  final String imageUrl = service['profile_image_url'] ?? '';
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12.0), // Replaces the SizedBox spacer
-                    child: _buildProviderCard(
-                      width: MediaQuery.of(context).size.width * 0.6,
-                      name: name,
-                      profession: profession,
-                      price: 'Rs.$hourlyRate/hr',
-
-                      // Handle missing images safely with a fallback placeholder
-                      imageUrl: imageUrl.isNotEmpty
-                          ? imageUrl
-                          : 'https://images.unsplash.com/photo-1598257006458-087169a1f08d',
-
-                      // Hardcoded for now unless you save these to Firestore later
-                      rating: '4.9',
-                      reviewCount: '0',
-                      distance: 'N/A',
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'My Services',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppStyles.primaryColor,
                     ),
-                  );
-                }).toList(),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Navigate to See All
+                    },
+                    child: Text(
+                      'See All',
+                      style: TextStyle(
+                        color: AppStyles.secondaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 30),
+
+            // Dynamic List Rendering using refactored components
+            serviceProvider.isLoading
+                ? ServiceProviderCardList(
+              providers: const [], // Empty list because isLoading is true
+              screenWidth: screenWidth,
+              isLoading: true,
+            )
+                : serviceProvider.myServicesList.isEmpty
+                ? _buildEmptyServicesState(context) // Using a helper for the empty state
+                : ServiceProviderCardList(
+              providers: serviceProvider.myServicesList,
+              screenWidth: screenWidth,
+              isLoading: false,
+            ),
+          ],
 
           // 📌 Services Section
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 25),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -277,11 +241,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
               ],
             ),
           ),
-          // const SizedBox(height: 10),
 
           // 📌 Nearby Providers Section
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 25),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -296,7 +259,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 TextButton(
                   onPressed: () {},
                   child: Text(
-                    'See All',
+                    'View All',
                     style: TextStyle(
                       color: AppStyles.secondaryColor,
                       fontWeight: FontWeight.w500,
@@ -306,180 +269,64 @@ class _ServicesScreenState extends State<ServicesScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          // const SizedBox(height: 10),
+          ServiceProviderCardList(
+            providers: serviceProvider.allServicesList,
+            screenWidth: screenWidth,
+            isLoading: serviceProvider.isAllProvidersLoading,
+          ),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildProviderCard(
-                    width: MediaQuery.of(context).size.width * 0.6,
-                    name: serviceProvider.fullName,
-                    profession: serviceProvider.profession,
-                    rating: '4.9',
-                    imageUrl:
-                    serviceProvider.profileImageUrl,
-                    distance: '2.4 km',
-                    price: 'Rs.${serviceProvider.hourlyRate}/hr', reviewCount: '45',
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyServicesState(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "You haven't added any services yet.",
+            style: TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddServiceScreen(),
                   ),
-                  const SizedBox(width: 12),
-                  _buildProviderCard(
-                    width: MediaQuery.of(context).size.width * 0.6,
-                    name: 'Maria Lee',
-                    profession: 'Electrician',
-                    rating: '4.7',
-                    imageUrl:
-                    'https://images.unsplash.com/photo-1598257006458-087169a1f08d',
-                    distance: '3.1 km',
-                    price: '\$35/hr', reviewCount: '8',
-                  ),
-                ],
+                );
+              },
+              icon: Icon(
+                Icons.add_circle_outline,
+                color: AppStyles.secondaryColor,
+              ),
+              label: Text(
+                'Add Your First Service',
+                style: TextStyle(
+                  color: AppStyles.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: AppStyles.secondaryColor,
+                  width: 1.5,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 30),
-
-          // Provider Card - spare
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-              border: Border.all(
-                color: Colors.grey[200]!,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                // Profile Image
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: AppStyles.secondaryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'AJ',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppStyles.secondaryColor,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                // Provider Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Alex Johnson',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppStyles.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Plumber',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '4.9 (127 reviews)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            color: AppStyles.secondaryColor,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '2.3 km',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Icon(
-                            Icons.attach_money,
-                            color: AppStyles.secondaryColor,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '\$45/hr',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Book Button
-                Container(
-                  width: 80,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppStyles.secondaryColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Book',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-
-
         ],
       ),
     );
@@ -498,18 +345,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: color.withOpacity(0.2),
-              width: 1,
-            ),
+            // border: Border.all(color: color.withOpacity(0.2), width: 1),
           ),
-          child: Center(
-            child: Icon(
-              icon,
-              size: 30,
-              color: color,
-            ),
-          ),
+          child: Center(child: Icon(icon, size: 30, color: color)),
         ),
         const SizedBox(height: 8),
         Text(
@@ -524,163 +362,4 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
-  // ================= PROVIDER CARD =================
-  Widget _buildProviderCard({
-    required double width,
-    required String name,
-    required String profession,
-    required String rating,
-    required String reviewCount, // Added review count parameter
-    required String imageUrl,
-    required String distance,
-    required String price,
-  }) {
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4), // Added slight vertical offset for better shadow
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ----------------------------------------
-          // IMAGE & LIKE BUTTON
-          // ----------------------------------------
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-                child: Image.network(
-                  imageUrl,
-                  height: 110, // Slightly increased height for better proportions
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              // 5. Like button at top right corner
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border,
-                    color: Color(0xFF1E293B), // Dark slate color
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // ----------------------------------------
-          // DETAILS SECTION (3 Rows)
-          // ----------------------------------------
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ROW 1: Name and Rating with Review Count
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B), // Dark blue/slate color matching the image
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Color(0xFF1E293B), size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                        Text(
-                          ' ($reviewCount)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 4),
-
-                // ROW 2: Designation / Profession
-                Text(
-                  profession,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[500],
-                  ),
-                ),
-
-                const SizedBox(height: 12), // Spacing before the final row
-
-                // ROW 3: Price and Distance
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Price Text (Formatted to match the blue text in the image)
-                    Text(
-                      price,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B82F6), // Blue color matching image
-                      ),
-                    ),
-                    // Distance with Location Icon
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(
-                          distance,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
-
-

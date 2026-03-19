@@ -9,7 +9,10 @@ class RentalsProvider extends ChangeNotifier {
   // 1. STATE VARIABLES
   // ==========================================
   List<Map<String, dynamic>> _myRentalsList = [];
+  List<Map<String, dynamic>> _allRentalsList = [];
+  
   bool _isLoading = true;
+  bool _isAllRentalsLoading = true;
 
   // Initialize your service
   final StoreAllRentalsInfo _rentalsService = StoreAllRentalsInfo();
@@ -18,10 +21,14 @@ class RentalsProvider extends ChangeNotifier {
   // 2. GETTERS
   // ==========================================
   List<Map<String, dynamic>> get myRentalsList => _myRentalsList;
+  List<Map<String, dynamic>> get allRentalsList => _allRentalsList;
+  
   bool get isLoading => _isLoading;
+  bool get isAllRentalsLoading => _isAllRentalsLoading;
 
   RentalsProvider() {
     _listenToRentalsData();
+    _listenToAllRentals();
   }
 
   // ==========================================
@@ -42,6 +49,30 @@ class RentalsProvider extends ChangeNotifier {
         notifyListeners();
       });
     }
+  }
+
+  void _listenToAllRentals() {
+    // Collection Group query to fetch all 'items' sub-collections across all rental owners
+    FirebaseFirestore.instance
+        .collectionGroup('items')
+        .snapshots()
+        .listen((snapshot) {
+      
+      _allRentalsList = snapshot.docs.map((doc) => doc.data()).toList();
+
+      _allRentalsList.sort((a, b) {
+        String nameA = (a['item_name'] ?? '').toString().toLowerCase();
+        String nameB = (b['item_name'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+      
+      _isAllRentalsLoading = false;
+      notifyListeners();
+    }, onError: (error) {
+      print("Error fetching all rentals: $error");
+      _isAllRentalsLoading = false;
+      notifyListeners();
+    });
   }
 
   // ==========================================

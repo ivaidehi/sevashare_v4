@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sevashare_v4/screens/services_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../custom_widgets/custom_appbar.dart';
+import '../custom_widgets/custom_navbar.dart';
 import '../providers/rentals_provider.dart';
+import '../providers/user_provider.dart';
 import '../styles/appstyles.dart';
+import 'add_rentals_screen.dart';
 
 class RentalsScreen extends StatefulWidget {
   const RentalsScreen({super.key});
@@ -15,19 +19,16 @@ class RentalsScreen extends StatefulWidget {
 class _RentalsScreenState extends State<RentalsScreen> {
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double cardWidth = (screenWidth - 60) / 2;
     final rentalsProvider = context.watch<RentalsProvider>();
+    final userProvider = context.watch<UserProvider>();
 
     return Scaffold(
       appBar: CustomAppBar(
         title: "Rentals",
         onBackPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ServicesScreen()),
-          );
+          ChangeTabNotification(0).dispatch(context);
         },
+        actionIcon: Icons.bookmark_border_rounded,
       ),
       backgroundColor: AppStyles.bgColor,
       body: SafeArea(
@@ -35,7 +36,6 @@ class _RentalsScreenState extends State<RentalsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               const SizedBox(height: 15),
 
               // ================= SEARCH BAR =================
@@ -56,19 +56,18 @@ class _RentalsScreenState extends State<RentalsScreen> {
                     decoration: InputDecoration(
                       hintText: 'Search rental items...',
                       border: InputBorder.none,
-                      prefixIcon:
-                      Icon(Icons.search, color: AppStyles.primaryColor),
-                      contentPadding:
-                      const EdgeInsets.symmetric(vertical: 14),
+                      prefixIcon: Icon(Icons.search, color: AppStyles.primaryColor),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 25),
+              const SizedBox(height: 20),
 
-              // ================= MY RENTALS SECTION =================
-              _buildMyRentalsSection(rentalsProvider),
+              // ================= MY RENTALS SECTION (Conditional) =================
+              if (userProvider.userType == "service_provider")
+                _buildMyRentalsSection(rentalsProvider),
 
               // ================= CATEGORIES =================
               Padding(
@@ -91,98 +90,17 @@ class _RentalsScreenState extends State<RentalsScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    _buildCategoryItem(
-                        icon: Icons.home, label: 'Home', color: Colors.blue),
-                    _buildCategoryItem(
-                        icon: Icons.build, label: 'Tools', color: Colors.orange),
-                    _buildCategoryItem(
-                        icon: Icons.electrical_services,
-                        label: 'Electronics',
-                        color: Colors.green),
+                    _buildCategoryItem(icon: Icons.home, label: 'Home', color: Colors.blue),
+                    _buildCategoryItem(icon: Icons.build, label: 'Tools', color: Colors.orange),
+                    _buildCategoryItem(icon: Icons.electrical_services, label: 'Electronics', color: Colors.green),
                   ],
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // ================= RENTAL ITEMS =================
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Available Items',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppStyles.primaryColor,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildRentalCard(
-                      width: cardWidth,
-                      name: 'Drill Machine',
-                      category: 'Tool',
-                      price: '\$10/day',
-                      owner: 'Rahul Sharma',
-                      condition: 'Good',
-                      distance: '1.5 km',
-                      imageUrl:
-                      'https://images.unsplash.com/photo-1597852074816-d933c7d2b988',
-                    ),
-                    _buildRentalCard(
-                      width: cardWidth,
-                      name: 'Vacuum Cleaner',
-                      category: 'Home',
-                      price: '\$8/day',
-                      owner: 'Priya Patel',
-                      condition: 'Excellent',
-                      distance: '2.2 km',
-                      imageUrl:
-                      'https://images.unsplash.com/photo-1581578731548-c64695cc6952',
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildRentalCard(
-                      width: cardWidth,
-                      name: 'DSLR Camera',
-                      category: 'Electronics',
-                      price: '\$20/day',
-                      owner: 'Amit Verma',
-                      condition: 'Very Good',
-                      distance: '3.0 km',
-                      imageUrl:
-                      'https://images.unsplash.com/photo-1516035069371-29a1b244cc32',
-                    ),
-                    _buildRentalCard(
-                      width: cardWidth,
-                      name: 'Ladder',
-                      category: 'Tool',
-                      price: '\$5/day',
-                      owner: 'Sanjay Mehta',
-                      condition: 'Good',
-                      distance: '1.8 km',
-                      imageUrl:
-                      'https://images.unsplash.com/photo-1503387762-592deb58ef4e',
-                    ),
-                  ],
-                ),
-              ),
+              // ================= AVAILABLE RENTALS SECTION =================
+              _buildAvailableRentalsSection(rentalsProvider),
 
               const SizedBox(height: 30),
             ],
@@ -195,11 +113,69 @@ class _RentalsScreenState extends State<RentalsScreen> {
   // ================= MY RENTALS SECTION =================
   Widget _buildMyRentalsSection(RentalsProvider rentalsProvider) {
     if (rentalsProvider.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+        child: _buildShimmerLoadingRow(),
+      );
     }
 
     if (rentalsProvider.myRentalsList.isEmpty) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'My Rental Items',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppStyles.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              "You haven't added any rental items yet.",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddRentalItemScreen(),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.add_circle_outline, color: AppStyles.secondaryColor),
+                label: Text(
+                  'Add Your First Rental Item',
+                  style: TextStyle(
+                    color: AppStyles.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppStyles.secondaryColor, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      );
     }
 
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -271,6 +247,97 @@ class _RentalsScreenState extends State<RentalsScreen> {
     );
   }
 
+  // ================= AVAILABLE RENTALS SECTION =================
+  Widget _buildAvailableRentalsSection(RentalsProvider rentalsProvider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Available Items',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppStyles.primaryColor,
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        rentalsProvider.isAllRentalsLoading
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildShimmerLoadingGrid(),
+              )
+            : rentalsProvider.allRentalsList.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text("No rental items available."),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double cardWidth = (constraints.maxWidth - 20) / 2;
+                        return Wrap(
+                          spacing: 20,
+                          runSpacing: 20,
+                          children: rentalsProvider.allRentalsList.map((item) {
+                            final List<dynamic> images = item['item_images'] ?? [];
+                            final String imageUrl = images.isNotEmpty ? images[0] : '';
+                            final String name = item['item_name'] ?? 'No Name';
+                            final String category = item['category'] ?? 'General';
+                            final double rentPerDay = (item['rent_per_day'] ?? 0.0).toDouble();
+                            final String owner = item['owner_name'] ?? 'Unknown';
+
+                            return _buildRentalCard(
+                              width: cardWidth,
+                              name: name,
+                              category: category,
+                              price: 'Rs.$rentPerDay/day',
+                              owner: owner,
+                              condition: 'N/A',
+                              distance: 'N/A',
+                              imageUrl: imageUrl,
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ),
+      ],
+    );
+  }
+
+  Widget _buildShimmerLoadingRow() {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double cardWidth = screenWidth * 0.45;
+    return SizedBox(
+      height: 220,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(right: 15),
+          child: _buildRentalCardShimmer(width: cardWidth),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoadingGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double cardWidth = (constraints.maxWidth - 20) / 2;
+        return Wrap(
+          spacing: 20,
+          runSpacing: 20,
+          children: List.generate(4, (index) => _buildRentalCardShimmer(width: cardWidth)),
+        );
+      },
+    );
+  }
+
   // ================= CATEGORY ITEM =================
   Widget _buildCategoryItem({
     required IconData icon,
@@ -327,31 +394,35 @@ class _RentalsScreenState extends State<RentalsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // IMAGE
           ClipRRect(
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
             ),
-            child: imageUrl.startsWith('http')
-                ? Image.network(
-                    imageUrl,
-                    height: 90,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 90,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.image, color: Colors.grey),
-                    ),
-                  )
-                : Container(
-                    height: 90,
-                    width: double.infinity,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.image, color: Colors.grey),
-                  ),
+            child: CachedNetworkImage(
+              imageUrl: imageUrl,
+              height: 90,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Shimmer.fromColors(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+                child: Container(
+                  height: 90,
+                  width: double.infinity,
+                  color: Colors.white,
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
+                height: 90,
+                width: double.infinity,
+                color: Colors.grey[200],
+                child: const Icon(Icons.image_not_supported, color: Colors.grey),
+              ),
+              memCacheHeight: 180,
+              maxWidthDiskCache: 400,
+            ),
           ),
 
           // DETAILS
@@ -360,7 +431,6 @@ class _RentalsScreenState extends State<RentalsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 Text(
                   name,
                   style: TextStyle(
@@ -371,43 +441,33 @@ class _RentalsScreenState extends State<RentalsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 const SizedBox(height: 2),
-
                 Text(
                   category,
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
-
                 const SizedBox(height: 4),
-
                 Text(
                   "Owner: $owner",
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 Text(
                   "Condition: $condition",
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
-
                 Row(
                   children: [
-                    Icon(Icons.location_on,
-                        size: 12, color: Colors.grey[600]),
+                    Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
                     const SizedBox(width: 3),
                     Text(
                       distance,
-                      style:
-                      TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 6),
-
                 Text(
                   price,
                   style: TextStyle(
@@ -420,6 +480,51 @@ class _RentalsScreenState extends State<RentalsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRentalCardShimmer({required double width}) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        width: width,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 90,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 80, height: 12, color: Colors.white),
+                  const SizedBox(height: 4),
+                  Container(width: 50, height: 10, color: Colors.white),
+                  const SizedBox(height: 4),
+                  Container(width: 60, height: 10, color: Colors.white),
+                  const SizedBox(height: 4),
+                  Container(width: 40, height: 12, color: Colors.white),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
