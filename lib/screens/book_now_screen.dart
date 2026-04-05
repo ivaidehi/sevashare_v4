@@ -5,11 +5,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/user_provider.dart';
 import '../services/backend_services.dart';
 import '../styles/appstyles.dart';
+import '../utils/calculate_distance.dart';
 
 class BookNowScreen extends StatefulWidget {
   final Map<String, dynamic> providerData;
+  final double? distance;
+  final double? averageRating;
+  final int? totalReviewCount;
 
-  const BookNowScreen({super.key, required this.providerData});
+  const BookNowScreen({
+    super.key,
+    required this.providerData,
+    this.distance,
+    this.averageRating,
+    this.totalReviewCount,
+  });
 
   @override
   State<BookNowScreen> createState() => _BookNowScreenState();
@@ -30,7 +40,7 @@ class _BookNowScreenState extends State<BookNowScreen> {
   final TextEditingController _reviewController = TextEditingController();
   int _userRating = 0;
   bool _isSubmittingReview = false;
-  
+
   bool get ready =>
       _selectedDate != null && _selectedSlot != null && !_isBooking;
 
@@ -417,6 +427,10 @@ class _BookNowScreenState extends State<BookNowScreen> {
   }
 
   Widget _buildProviderHeader(Map<String, dynamic> data) {
+    final int reviewCount = widget.totalReviewCount ?? (data['reviews_count'] ?? 0);
+    final double rating = widget.averageRating ?? (data['rating'] ?? 0.0).toDouble();
+    final bool isNew = reviewCount <= 0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -458,30 +472,39 @@ class _BookNowScreenState extends State<BookNowScreen> {
                 ),
                 Text(
                   data['profession'] ?? 'Service Provider',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                  style: TextStyle(color: Colors.white.withOpacity(0.8)),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 18),
-                    const SizedBox(width: 4),
-                    Text(
-                      data['rating']?.toString() ?? '4.8',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                if (isNew)
+                  Text(
+                    "New",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
-                    if (data['reviews_count'] != null)
+                  )
+                else
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 18),
+                      const SizedBox(width: 4),
                       Text(
-                        ' (${data['reviews_count']} reviews)',
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        ' ($reviewCount reviews)',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: Colors.white.withOpacity(0.6),
                           fontSize: 12,
                         ),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -499,7 +522,7 @@ class _BookNowScreenState extends State<BookNowScreen> {
               Text(
                 "/hr",
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: Colors.white.withOpacity(0.8),
                   fontSize: 12,
                 ),
               ),
@@ -511,10 +534,13 @@ class _BookNowScreenState extends State<BookNowScreen> {
   }
 
   Widget _buildStatsRow(Map<String, dynamic> data) {
+    double? d = widget.distance ?? (data['distance'] ?? data['_distance'])?.toDouble();
+    String distanceStr = d != null ? CalculateDistance.formatDistance(d) : 'N/A';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildStatItem(data['distance']?.toString() ?? '2.5 km', 'Distance'),
+        _buildStatItem(distanceStr, 'Distance'),
         _buildStatItem(data['jobs_done']?.toString() ?? '342', 'Jobs Done'),
         _buildStatItem('Rs.${data['hourly_rate']}/hr', 'Rate'),
       ],
@@ -612,13 +638,16 @@ class _BookNowScreenState extends State<BookNowScreen> {
     // Robustly extract IDs
     String providerUid = data['provider_uid'] ?? '';
     if (providerUid.isEmpty) providerUid = data['uid'] ?? '';
-    if (providerUid.isEmpty) {
+    if (providerUid.isEmpty)
       providerUid = widget.providerData['provider_uid'] ?? '';
-    }
     if (providerUid.isEmpty) providerUid = widget.providerData['uid'] ?? '';
 
     String serviceId = data['service_id'] ?? '';
     if (serviceId.isEmpty) serviceId = widget.providerData['service_id'] ?? '';
+
+    final int reviewCount = widget.totalReviewCount ?? (data['reviews_count'] ?? 0);
+    final double rating = widget.averageRating ?? (data['rating'] ?? 0.0).toDouble();
+    final bool isNew = reviewCount <= 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,23 +656,33 @@ class _BookNowScreenState extends State<BookNowScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSectionTitle('Ratings & Reviews'),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 20),
-                const SizedBox(width: 4),
-                Text(
-                  data['rating']?.toString() ?? '4.8',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+            if (isNew)
+              Text(
+                "New",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppStyles.secondaryColor,
+                ),
+              )
+            else
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                Text(
-                  ' (${data['reviews_count'] ?? 0} reviews)',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
-            ),
+                  Text(
+                    ' ($reviewCount reviews)',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                ],
+              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -694,7 +733,7 @@ class _BookNowScreenState extends State<BookNowScreen> {
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppStyles.primaryColor.withValues(alpha: 0.1),
+              backgroundColor: AppStyles.primaryColor.withOpacity(0.1),
               child: Text(
                 (review['userName'] ?? 'U')[0].toUpperCase(),
                 style: TextStyle(
@@ -904,7 +943,9 @@ class _BookNowScreenState extends State<BookNowScreen> {
   Widget _buildTimeSlotsSection() {
     if (_selectedDayPart == null) return const SizedBox.shrink();
 
-    final slots = _groupedSlots[_selectedDayPart]!;
+    final slots = _groupedSlots[_selectedDayPart]!
+        .where((slot) => !_bookedSlots.contains(slot))
+        .toList();
 
     return Wrap(
       spacing: 10,

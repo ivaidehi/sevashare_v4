@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -7,12 +8,22 @@ import '../providers/rentals_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/backend_services.dart';
 import '../styles/appstyles.dart';
+import '../utils/calculate_distance.dart';
 import 'bookings_screen.dart';
 
 class RentNowScreen extends StatefulWidget {
   final Map<String, dynamic> item;
+  final double? distance;
+  final double? averageRating;
+  final int? totalReviewCount;
 
-  const RentNowScreen({super.key, required this.item});
+  const RentNowScreen({
+    super.key,
+    required this.item,
+    this.distance,
+    this.averageRating,
+    this.totalReviewCount,
+  });
 
   @override
   State<RentNowScreen> createState() => _RentNowScreenState();
@@ -29,13 +40,14 @@ class _RentNowScreenState extends State<RentNowScreen> {
   int _userRating = 0;
   bool _isSubmittingReview = false;
   List<String> _bookedSlots = [];
+  StreamSubscription? _slotsSubscription;
   final BookingService _bookingService = BookingService();
 
   bool get ready =>
       _selectedDate != null &&
-      _selectedSlot != null &&
-      !_isLoading &&
-      _descriptionController.text.trim().isNotEmpty;
+          _selectedSlot != null &&
+          !_isLoading &&
+          _descriptionController.text.trim().isNotEmpty;
 
   final Map<String, List<String>> _groupedSlots = {
     "Morning": [
@@ -63,38 +75,49 @@ class _RentNowScreenState extends State<RentNowScreen> {
 
   @override
   void dispose() {
+    _slotsSubscription?.cancel();
     _descriptionController.dispose();
     _reviewController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchBookedSlots(DateTime date) async {
+  void _fetchBookedSlots(DateTime date) {
+    _slotsSubscription?.cancel();
     setState(() {
       _isLoadingSlots = true;
       _selectedSlot = null;
+      _bookedSlots = [];
     });
 
     try {
-      String itemId = widget.item['rental_item_id'] ?? '';
-      String formattedDate = DateFormat('yyyy-MM-dd').format(date);
+      final String itemId = widget.item['rental_item_id']?.toString() ?? '';
+      final String formattedDate = DateFormat('yyyy-MM-dd').format(date);
 
-      final snapshot = await FirebaseFirestore.instance
+      _slotsSubscription = FirebaseFirestore.instance
           .collection('bookings')
           .where('item_id', isEqualTo: itemId)
           .where('booking_date', isEqualTo: formattedDate)
           .where('status', isNotEqualTo: 'cancelled')
-          .get();
+          .snapshots()
+          .listen((snapshot) {
+        final List<String> booked = snapshot.docs
+            .map((doc) => (doc.data()['time_slot'] ?? '').toString())
+            .toList();
 
-      List<String> booked = snapshot.docs
-          .map((doc) => doc.data()['time_slot'] as String)
-          .toList();
-
-      setState(() {
-        _bookedSlots = booked;
-        _isLoadingSlots = false;
+        if (mounted) {
+          setState(() {
+            _bookedSlots = booked;
+            _isLoadingSlots = false;
+          });
+        }
+      }, onError: (e) {
+        debugPrint("Error fetching slots: $e");
+        if (mounted) {
+          setState(() => _isLoadingSlots = false);
+        }
       });
     } catch (e) {
-      debugPrint("Error fetching slots: $e");
+      debugPrint("Error setting up slots stream: $e");
       setState(() => _isLoadingSlots = false);
     }
   }
@@ -353,17 +376,17 @@ class _RentNowScreenState extends State<RentNowScreen> {
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
                       : const Text(
-                          'Rent Now',
-                          style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
+                    'Rent Now',
+                    style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ),
@@ -374,6 +397,10 @@ class _RentNowScreenState extends State<RentNowScreen> {
   }
 
   Widget _buildItemHeader(String imageUrl, String name, String category, double price) {
+    final int reviewCount = widget.totalReviewCount ?? (widget.item['reviews_count'] ?? 0);
+    final double rating = widget.averageRating ?? (widget.item['rating'] ?? 0.0).toDouble();
+    final bool isNew = reviewCount <= 0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -414,16 +441,33 @@ class _RentNowScreenState extends State<RentNowScreen> {
                   style: TextStyle(color: Colors.white.withOpacity(0.8)),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 18),
-                    const SizedBox(width: 4),
-                    const Text(
-                      '4.8',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                if (isNew)
+                  Text(
+                    "New",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
-                  ],
-                ),
+                  )
+                else
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        ' ($reviewCount reviews)',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -446,10 +490,13 @@ class _RentNowScreenState extends State<RentNowScreen> {
   }
 
   Widget _buildStatsRow() {
+    double? d = widget.distance ?? (widget.item['distance'] ?? widget.item['_distance'])?.toDouble();
+    String distanceStr = d != null ? CalculateDistance.formatDistance(d) : 'N/A';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildStatItem('2.5 km', 'Distance'),
+        _buildStatItem(distanceStr, 'Distance'),
         _buildStatItem('Available', 'Status'),
         _buildStatItem('Verified', 'Owner'),
       ],
@@ -507,6 +554,9 @@ class _RentNowScreenState extends State<RentNowScreen> {
   Widget _buildReviewsSection() {
     final String ownerId = widget.item['owner_uid'] ?? widget.item['currentUser_uid'] ?? '';
     final String itemId = widget.item['rental_item_id'] ?? '';
+    final int reviewCount = widget.totalReviewCount ?? (widget.item['reviews_count'] ?? 0);
+    final double rating = widget.averageRating ?? (widget.item['rating'] ?? 0.0).toDouble();
+    final bool isNew = reviewCount <= 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,16 +565,30 @@ class _RentNowScreenState extends State<RentNowScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSectionTitle('Ratings & Reviews'),
-            const Row(
-              children: [
-                Icon(Icons.star, color: Colors.amber, size: 20),
-                SizedBox(width: 4),
-                Text(
-                  '4.8',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            if (isNew)
+              Text(
+                "New",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppStyles.secondaryColor,
                 ),
-              ],
-            ),
+              )
+            else
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    rating.toStringAsFixed(1),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(
+                    ' ($reviewCount reviews)',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                ],
+              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -787,30 +851,32 @@ class _RentNowScreenState extends State<RentNowScreen> {
   Widget _buildTimeSlotsSection() {
     if (_selectedDayPart == null) return const SizedBox.shrink();
 
-    final slots = _groupedSlots[_selectedDayPart]!;
+    // Filtering out slots that are already booked
+    final List<String> availableSlots = _groupedSlots[_selectedDayPart]!
+        .where((slot) => !_bookedSlots.contains(slot))
+        .toList();
 
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: slots.map((slot) {
-        bool isBooked = _bookedSlots.contains(slot);
+      children: availableSlots.map((slot) {
         bool isSelected = _selectedSlot == slot;
         return GestureDetector(
-          onTap: isBooked ? null : () => setState(() => _selectedSlot = slot),
+          onTap: () => setState(() => _selectedSlot = slot),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? AppStyles.secondaryColor : (isBooked ? Colors.grey[200] : Colors.white),
+              color: isSelected ? AppStyles.secondaryColor : Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isSelected ? AppStyles.secondaryColor : (isBooked ? Colors.transparent : Colors.grey[300]!),
+                color: isSelected ? AppStyles.secondaryColor : Colors.grey[300]!,
               ),
             ),
             child: Text(
               slot,
               style: TextStyle(
                 fontSize: 12,
-                color: isSelected ? Colors.white : (isBooked ? Colors.grey[400] : Colors.black87),
+                color: isSelected ? Colors.white : Colors.black87,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),

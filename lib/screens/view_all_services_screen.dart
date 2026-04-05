@@ -19,6 +19,7 @@ class ViewAllCardsScreen extends StatefulWidget {
 
 class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
   String _selectedCity = 'Mumbai';
+  String _selectedPriceFilter = 'None';
   final ScrollController _scrollController = ScrollController();
 
   void _openCitySelection() async {
@@ -36,6 +37,72 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
     }
   }
 
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+            builder: (context, setModalState) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Sort by Price",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppStyles.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    ListTile(
+                      leading: Icon(Icons.sort, color: AppStyles.secondaryColor),
+                      title: const Text("Low to High"),
+                      trailing: _selectedPriceFilter == 'Low to High'
+                          ? Icon(Icons.check_circle, color: AppStyles.secondaryColor)
+                          : null,
+                      onTap: () {
+                        setModalState(() => _selectedPriceFilter = 'Low to High');
+                        setState(() => _selectedPriceFilter = 'Low to High');
+                        Navigator.pop(context);
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.sort, color: AppStyles.secondaryColor),
+                      title: const Text("High to Low"),
+                      trailing: _selectedPriceFilter == 'High to Low'
+                          ? Icon(Icons.check_circle, color: AppStyles.secondaryColor)
+                          : null,
+                      onTap: () {
+                        setModalState(() => _selectedPriceFilter = 'High to Low');
+                        setState(() => _selectedPriceFilter = 'High to Low');
+                        Navigator.pop(context);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.refresh, color: Colors.grey),
+                      title: const Text("Reset Filter"),
+                      onTap: () {
+                        setModalState(() => _selectedPriceFilter = 'None');
+                        setState(() => _selectedPriceFilter = 'None');
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -46,6 +113,8 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
   Widget build(BuildContext context) {
     final serviceProvider = context.watch<ServiceProvider>();
     final userProvider = context.watch<UserProvider>();
+    final size = MediaQuery.of(context).size;
+    final double paddingHorizontal = size.width * 0.05;
 
     // 1. Filter providers based on the selected city and optionally by category
     List<Map<String, dynamic>> filteredProviders = serviceProvider.allServicesList
@@ -53,18 +122,18 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
       final address = service['address'] as Map<String, dynamic>?;
       final city = address?['city']?.toString() ?? '';
       bool cityMatch = city.toLowerCase() == _selectedCity.toLowerCase();
-      
+
       if (widget.category != null) {
         final category = service['service_category']?.toString() ?? '';
         return cityMatch && category.toLowerCase() == widget.category!.toLowerCase();
       }
-      
+
       return cityMatch;
     })
         .map((p) => Map<String, dynamic>.from(p))
         .toList();
 
-    // 2. Calculate distances and sort
+    // 2. Calculate distances for everyone first
     for (var provider in filteredProviders) {
       final address = provider['address'] as Map<String, dynamic>?;
       final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
@@ -78,15 +147,30 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
       );
     }
 
-    // Sort by distance (ascending)
-    filteredProviders.sort((a, b) {
-      double distA = a['_distance'] ?? -1.0;
-      double distB = b['_distance'] ?? -1.0;
+    // 3. Apply sorting (Price or Distance)
+    if (_selectedPriceFilter == 'Low to High') {
+      filteredProviders.sort((a, b) {
+        double priceA = double.tryParse(a['hourly_rate']?.toString() ?? '0') ?? 0.0;
+        double priceB = double.tryParse(b['hourly_rate']?.toString() ?? '0') ?? 0.0;
+        return priceA.compareTo(priceB);
+      });
+    } else if (_selectedPriceFilter == 'High to Low') {
+      filteredProviders.sort((a, b) {
+        double priceA = double.tryParse(a['hourly_rate']?.toString() ?? '0') ?? 0.0;
+        double priceB = double.tryParse(b['hourly_rate']?.toString() ?? '0') ?? 0.0;
+        return priceB.compareTo(priceA);
+      });
+    } else {
+      // Default: Sort by distance (ascending)
+      filteredProviders.sort((a, b) {
+        double distA = a['_distance'] ?? -1.0;
+        double distB = b['_distance'] ?? -1.0;
 
-      if (distA < 0) return 1;
-      if (distB < 0) return -1;
-      return distA.compareTo(distB);
-    });
+        if (distA < 0) return 1;
+        if (distB < 0) return -1;
+        return distA.compareTo(distB);
+      });
+    }
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -97,13 +181,13 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
           Navigator.pop(context);
         },
         actionIcon: Icons.filter_list_rounded,
+        onMenuPressed: _showFilterBottomSheet,
       ),
       backgroundColor: AppStyles.bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Use Flexible with constraints to prevent overflow
-            Flexible(
+            Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   if (serviceProvider.isAllProvidersLoading) {
@@ -114,40 +198,50 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
 
                   if (filteredProviders.isEmpty) {
                     return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.location_off,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "No providers found${widget.category != null ? " for ${widget.category}" : ""} in $_selectedCity",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: size.width * 0.15,
+                              color: Colors.grey[400],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: _openCitySelection,
-                            child: const Text("Change City"),
-                          ),
-                        ],
+                            SizedBox(height: size.height * 0.02),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                "No providers found${widget.category != null ? " for ${widget.category}" : ""} in $_selectedCity",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _openCitySelection,
+                              child: const Text("Change City"),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
 
-                  // Use SingleChildScrollView with GridView inside for proper scrolling
                   return SingleChildScrollView(
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.all(20),
-                    child: ServiceProviderCardGrid(
-                      providers: filteredProviders,
-                      isLoading: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: paddingHorizontal,
+                        vertical: size.height * 0.02,
+                      ),
+                      child: ServiceProviderCardGrid(
+                        providers: filteredProviders,
+                        isLoading: false,
+                      ),
                     ),
                   );
                 },

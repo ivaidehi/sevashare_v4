@@ -37,7 +37,7 @@ class RentalsProvider extends ChangeNotifier {
     _listenToRentalsData();
     _listenToAllRentals();
     fetchUserBookings();
-    fetchProviderBookings(); // ✅ FIXED
+    fetchProviderBookings();
   }
 
   // ==========================================
@@ -54,7 +54,12 @@ class RentalsProvider extends ChangeNotifier {
           .orderBy('created_at', descending: true)
           .snapshots()
           .listen((snapshot) {
-        _myRentalsList = snapshot.docs.map((doc) => doc.data()).toList();
+        _myRentalsList = snapshot.docs.map((doc) {
+          final data = doc.data();
+          data['item_id'] = doc.id;
+          data['owner_id'] = uid;
+          return data;
+        }).toList();
         _isLoading = false;
         notifyListeners();
       });
@@ -67,7 +72,14 @@ class RentalsProvider extends ChangeNotifier {
         .snapshots()
         .listen((snapshot) {
 
-      _allRentalsList = snapshot.docs.map((doc) => doc.data()).toList();
+      _allRentalsList = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['item_id'] = doc.id;
+        // For collectionGroup('items'), doc.reference.parent is 'items' collection,
+        // and parent.parent is the owner document in 'rentals' collection.
+        data['owner_id'] = doc.reference.parent.parent?.id;
+        return data;
+      }).toList();
 
       _allRentalsList.sort((a, b) {
         String nameA = (a['item_name'] ?? '').toString().toLowerCase();
@@ -93,7 +105,7 @@ class RentalsProvider extends ChangeNotifier {
 
     if (uid != null) {
       FirebaseFirestore.instance
-          .collection('bookings')
+          .collection('rental_bookings')
           .where('renter_id', isEqualTo: uid)
           .snapshots()
           .listen((snapshot) {
@@ -110,26 +122,21 @@ class RentalsProvider extends ChangeNotifier {
   }
 
   // ==========================================
-  // 6. FETCH PROVIDER BOOKINGS (🔥 MAIN FIX)
+  // 6. FETCH PROVIDER BOOKINGS
   // ==========================================
   void fetchProviderBookings() {
     String? uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid != null) {
       FirebaseFirestore.instance
-          .collection('bookings')
-          .where('owner_id', isEqualTo: uid) // ✅ IMPORTANT
+          .collection('rental_bookings')
+          .where('owner_id', isEqualTo: uid)
           .snapshots()
           .listen((snapshot) {
-
-        print("Provider UID: $uid"); // Debug
 
         _providerBookings = snapshot.docs.map((doc) {
           var data = doc.data();
           data['id'] = doc.id;
-
-          print("Booking owner_id: ${data['owner_id']}"); // Debug
-
           return data;
         }).toList();
 
@@ -150,7 +157,7 @@ class RentalsProvider extends ChangeNotifier {
   // ==========================================
   Future<bool> bookRental(Map<String, dynamic> bookingData) async {
     try {
-      bool success = await _bookingService.createRentalBooking(bookingData);
+      bool success = await _bookingService.bookRental(bookingData);
       return success;
     } catch (e) {
       print("Booking Error: $e");

@@ -118,9 +118,9 @@ class _RentalsScreenState extends State<RentalsScreen> {
                     ),
                     _buildCategoryItem(
                       icon: Icons.electrical_services,
-                      label: 'Electrical',
+                      label: 'Electronics',
                       color: Colors.green,
-                      onTap: () => _navigateToViewAllRentals('Electrical'),
+                      onTap: () => _navigateToViewAllRentals('Electronics'),
                     ),
                   ],
                 ),
@@ -157,9 +157,12 @@ class _RentalsScreenState extends State<RentalsScreen> {
               ),
               const SizedBox(height: 10),
               
-              RentalCardGrid(
-                items: rentalsProvider.allRentalsList,
-                isLoading: rentalsProvider.isAllRentalsLoading,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: RentalCardGrid(
+                  items: rentalsProvider.allRentalsList,
+                  isLoading: rentalsProvider.isAllRentalsLoading,
+                ),
               ),
 
               // const SizedBox(height: 30),

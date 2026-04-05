@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -183,61 +184,118 @@ class StoreAllRentalsInfo {
 }
 
 // -----------------------------------------------------------------------------
-// 📌 Booking Service for managing service bookings
+// 📌 Booking Service for managing service and rental bookings separately
 class BookingService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Future<bool> createBooking(Map<String, dynamic> bookingData) async {
+  // 📌 Service Bookings
+  Future<bool> bookService(Map<String, dynamic> bookingData) async {
     try {
-      final docRef = _db.collection('bookings').doc();
+      final docRef = _db.collection('service_bookings').doc();
       bookingData['bookingId'] = docRef.id;
       bookingData['bookingStatus'] = 'pending';
       bookingData['createdAt'] = FieldValue.serverTimestamp();
-      bookingData['timestamp'] = FieldValue.serverTimestamp(); // For real-time sorting
+      bookingData['timestamp'] = FieldValue.serverTimestamp();
 
       await docRef.set(bookingData);
       return true;
     } catch (e) { return false; }
   }
 
-  // 📌 Acceptance Logic
-  Future<void> acceptBooking(String bookingId) async {
+  // For backward compatibility while refactoring
+  Future<bool> createBooking(Map<String, dynamic> bookingData) => bookService(bookingData);
+
+  Future<void> acceptServiceBooking(String bookingId) async {
     try {
-      await _db.collection('bookings').doc(bookingId).update({
+      await _db.collection('service_bookings').doc(bookingId).update({
         'bookingStatus': 'accepted',
         'acceptedAt': FieldValue.serverTimestamp(),
       });
-    } catch (e) { print('Error accepting booking: $e'); }
+    } catch (e) { print('Error accepting service booking: $e'); }
   }
 
-  // 📌 Real-time Stream for User
-  // ✅ Removed .orderBy('timestamp') to avoid index error. Sorting is done client-side.
-  Stream<QuerySnapshot> getBookingsForUser(String userUid) {
-    return _db.collection('bookings')
-        .where(Filter.or(
-        Filter('userUid', isEqualTo: userUid),
-        Filter('renter_id', isEqualTo: userUid)
-    ))
-        .snapshots();
+  // For backward compatibility
+  Future<void> acceptBooking(String bookingId) => acceptServiceBooking(bookingId);
+
+  // 📌 Rental Bookings
+  Future<bool> bookRental(Map<String, dynamic> bookingData) async {
+    try {
+      final docRef = _db.collection('rental_bookings').doc();
+      bookingData['booking_id'] = docRef.id;
+      bookingData['status'] = 'pending';
+      bookingData['createdAt'] = FieldValue.serverTimestamp();
+      bookingData['timestamp'] = FieldValue.serverTimestamp();
+      await docRef.set(bookingData);
+      return true;
+    } catch (e) { return false; }
   }
 
-  // 📌 Real-time Stream for Provider
-  // ✅ Removed .orderBy('timestamp') to avoid index error. Sorting is done client-side.
-  Stream<QuerySnapshot> getBookingsForProvider(String providerId) {
-    return _db.collection('bookings')
-        .where(Filter.or(
-        Filter('providerId', isEqualTo: providerId),
-        Filter('owner_id', isEqualTo: providerId)
-    ))
+  // For backward compatibility
+  Future<bool> createRentalBooking(Map<String, dynamic> bookingData) => bookRental(bookingData);
+
+  Future<void> updateRentalBookingStatus(String bookingId, String newStatus) async {
+    try {
+      await _db.collection('rental_bookings').doc(bookingId).update({
+        'status': newStatus,
+        if (newStatus == 'accepted') 'acceptedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) { print('Error updating rental booking status: $e'); }
+  }
+
+  // 📌 Real-time Streams (Merged)
+  
+  // Note: These return a Stream of Lists because we can't merge two different collections into one QuerySnapshot.
+  // We'll return dynamic to satisfy existing StreamBuilder types if possible, but ideally Stream<List<DocumentSnapshot>>.
+  Stream<List<DocumentSnapshot>> getBookingsForUser(String userUid) {
+    final serviceStream = _db.collection('service_bookings')
+        .where('userUid', isEqualTo: userUid)
         .snapshots();
+        
+    final rentalStream = _db.collection('rental_bookings')
+        .where('renter_id', isEqualTo: userUid)
+        .snapshots();
+
+    return _mergeBookingStreams(serviceStream, rentalStream);
+  }
+
+  Stream<List<DocumentSnapshot>> getBookingsForProvider(String providerId) {
+    final serviceStream = _db.collection('service_bookings')
+        .where('providerId', isEqualTo: providerId)
+        .snapshots();
+        
+    final rentalStream = _db.collection('rental_bookings')
+        .where('owner_id', isEqualTo: providerId)
+        .snapshots();
+
+    return _mergeBookingStreams(serviceStream, rentalStream);
+  }
+
+  Stream<List<DocumentSnapshot>> _mergeBookingStreams(
+      Stream<QuerySnapshot> s1, Stream<QuerySnapshot> s2) {
+    final controller = StreamController<List<DocumentSnapshot>>();
+    List<DocumentSnapshot> l1 = [];
+    List<DocumentSnapshot> l2 = [];
+
+    void emit() {
+      if (!controller.isClosed) {
+        controller.add([...l1, ...l2]);
+      }
+    }
+
+    final sub1 = s1.listen((snap) { l1 = snap.docs; emit(); }, onError: controller.addError);
+    final sub2 = s2.listen((snap) { l2 = snap.docs; emit(); }, onError: controller.addError);
+
+    controller.onCancel = () {
+      sub1.cancel();
+      sub2.cancel();
+    };
+
+    return controller.stream;
   }
 
   // 📌 Fetch Reviews for a Service
   Stream<QuerySnapshot> getServiceReviews(String providerId, String serviceId) {
-    // Return empty stream if IDs are missing to prevent crash
-    if (providerId.isEmpty || serviceId.isEmpty) {
-      return const Stream.empty();
-    }
+    if (providerId.isEmpty || serviceId.isEmpty) return const Stream.empty();
     return _db.collection('service_providers')
         .doc(providerId)
         .collection('services')
@@ -249,10 +307,7 @@ class BookingService {
 
   // 📌 Submit a Review
   Future<bool> submitReview(String providerId, String serviceId, Map<String, dynamic> reviewData) async {
-    if (providerId.isEmpty || serviceId.isEmpty) {
-      print('❌ Error: providerId or serviceId is empty');
-      return false;
-    }
+    if (providerId.isEmpty || serviceId.isEmpty) return false;
     try {
       await _db.collection('service_providers')
           .doc(providerId)
@@ -260,33 +315,8 @@ class BookingService {
           .doc(serviceId)
           .collection('reviews')
           .add(reviewData);
-
-      return true;
-    } catch (e) {
-      print('Error submitting review: $e');
-      return false;
-    }
-  }
-
-  // 📌 Rental specific booking methods
-  Future<bool> createRentalBooking(Map<String, dynamic> bookingData) async {
-    try {
-      final docRef = _db.collection('bookings').doc();
-      bookingData['booking_id'] = docRef.id;
-      bookingData['createdAt'] = FieldValue.serverTimestamp();
-      bookingData['timestamp'] = FieldValue.serverTimestamp();
-      await docRef.set(bookingData);
       return true;
     } catch (e) { return false; }
-  }
-
-  Future<void> updateRentalBookingStatus(String bookingId, String newStatus) async {
-    try {
-      await _db.collection('bookings').doc(bookingId).update({
-        'status': newStatus,
-        if (newStatus == 'accepted') 'acceptedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) { print('Error updating rental booking status: $e'); }
   }
 
   // 📌 Rental Reviews

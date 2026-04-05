@@ -37,7 +37,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
         children: [
           _buildTabs(),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
+            child: StreamBuilder<List<DocumentSnapshot>>(
               stream: isProvider
                   ? _bookingService.getBookingsForProvider(uid)
                   : _bookingService.getBookingsForUser(uid),
@@ -48,11 +48,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return _buildEmptyState();
                 }
 
-                final List<DocumentSnapshot> allBookings = List.from(snapshot.data!.docs);
+                final List<DocumentSnapshot> allBookings = List.from(snapshot.data!);
 
                 // Sorting client-side to ensure real-time responsiveness
                 allBookings.sort((a, b) {

@@ -46,6 +46,8 @@ class _ViewAllRentalsScreenState extends State<ViewAllRentalsScreen> {
   Widget build(BuildContext context) {
     final rentalsProvider = context.watch<RentalsProvider>();
     final userProvider = context.watch<UserProvider>();
+    final size = MediaQuery.of(context).size;
+    final double paddingHorizontal = size.width * 0.05;
 
     // 1. Filter rentals based on the selected city and optionally by category
     List<Map<String, dynamic>> filteredRentals = rentalsProvider.allRentalsList
@@ -102,7 +104,7 @@ class _ViewAllRentalsScreenState extends State<ViewAllRentalsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Flexible(
+            Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   if (rentalsProvider.isAllRentalsLoading) {
@@ -113,28 +115,34 @@ class _ViewAllRentalsScreenState extends State<ViewAllRentalsScreen> {
 
                   if (filteredRentals.isEmpty) {
                     return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.location_off,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "No rentals found${widget.category != null ? " in ${widget.category}" : ""} in $_selectedCity",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: size.width * 0.15,
+                              color: Colors.grey[400],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: _openCitySelection,
-                            child: const Text("Change City"),
-                          ),
-                        ],
+                            SizedBox(height: size.height * 0.02),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                "No rentals found${widget.category != null ? " in ${widget.category}" : ""} in $_selectedCity",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _openCitySelection,
+                              child: const Text("Change City"),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
@@ -142,9 +150,15 @@ class _ViewAllRentalsScreenState extends State<ViewAllRentalsScreen> {
                   return SingleChildScrollView(
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
-                    child: RentalCardGrid(
-                      items: filteredRentals,
-                      isLoading: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: paddingHorizontal,
+                        vertical: size.height * 0.02,
+                      ),
+                      child: RentalCardGrid(
+                        items: filteredRentals,
+                        isLoading: false,
+                      ),
                     ),
                   );
                 },

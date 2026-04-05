@@ -16,6 +16,7 @@ class _SelectCityScreenState extends State<SelectCityScreen> {
   // City list with placeholder icons representing landmarks
   final List<Map<String, dynamic>> _cities = [
     {'name': 'Mumbai', 'icon': Icons.location_city},
+    {'name': 'Thane', 'icon': Icons.apartment},
     {'name': 'Delhi-NCR', 'icon': Icons.account_balance},
     {'name': 'Bengaluru', 'icon': Icons.business},
     {'name': 'Hyderabad', 'icon': Icons.fort},
