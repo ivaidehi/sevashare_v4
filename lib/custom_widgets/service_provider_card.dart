@@ -16,7 +16,8 @@ class ServiceProviderCard extends StatelessWidget {
   final String price;
   final double? providerLat;
   final double? providerLon;
-  final double? distance; // Optional pre-calculated distance
+  final double? distance;
+  final VoidCallback? onBookPressed;
 
   const ServiceProviderCard({
     super.key,
@@ -30,13 +31,13 @@ class ServiceProviderCard extends StatelessWidget {
     this.providerLat,
     this.providerLon,
     this.distance,
+    this.onBookPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    
-    // Use passed distance or calculate in real-time using provider coordinates
+
     final double distanceKm = distance ?? CalculateDistance.calculateDistance(
       userProvider.latitude,
       userProvider.longitude,
@@ -50,106 +51,173 @@ class ServiceProviderCard extends StatelessWidget {
         ? imageUrl
         : 'https://images.unsplash.com/photo-1598257006458-087169a1f08d';
 
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+    return Flexible(
+      child: Container(
+        width: width,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Allow column to shrink to content
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Section - No fixed height, using aspect ratio for flexibility
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              child: AspectRatio(
+                aspectRatio: 16 / 9, // Consistent aspect ratio instead of fixed height
                 child: CachedNetworkImage(
                   imageUrl: effectiveImageUrl,
-                  height: 110,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => const ServiceProviderCardShimmer(isImageOnly: true),
                   errorWidget: (context, url, error) => Container(
-                    height: 110,
                     width: double.infinity,
                     color: Colors.grey[200],
                     child: const Icon(Icons.image_not_supported, color: Colors.grey),
                   ),
                 ),
               ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: const Icon(Icons.favorite_border, color: Color(0xFF1E293B), size: 18),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Service Name
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        profession,
+            ),
+
+            // Content Section - Flexible padding
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // Allow column to shrink
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Row with profession and rating
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          profession,
+                          maxLines: 2, // Allow up to 2 lines for longer professions
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8), // Spacing between text and rating
+                      // Rating & Comments count - Wrap to prevent overflow
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, color: Color(0xFF1E293B), size: 14),
+                            const SizedBox(width: 2),
+                            Flexible(
+                              child: Text(
+                                rating,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                            Flexible(
+                              child: Text(
+                                ' ($reviewCount)',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Provider Name - with maxLines
+                  Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Location & Price Row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Location section - flexible
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 14, color: Colors.black),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                displayDistance,
+                                style: const TextStyle(fontSize: 12, color: Colors.black),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Price section - non-wrapping
+                      Text(
+                        price,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF3B82F6),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Book Button - with proper sizing
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: onBookPressed,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppStyles.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        minimumSize: const Size(0, 36), // Minimum height for button
+                      ),
+                      child: const Text(
+                        'Book',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Rating & Comments count
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Color(0xFF1E293B), size: 14),
-                        // const SizedBox(width: 4),
-                        Text(rating, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-                        Text(' ($reviewCount)', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                      ],
-                    ),
-                  ],
-                ),
-                // const SizedBox(height: 4),
-
-                // Profession
-                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                const SizedBox(height: 5),
-
-                // location & price
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: Colors.black),
-                        const SizedBox(width: 4),
-                        Text(displayDistance, style: TextStyle(fontSize: 12, color: Colors.black)),
-                      ],
-                    ),
-                    Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -167,20 +235,52 @@ class ServiceProviderCardShimmer extends StatelessWidget {
       baseColor: Colors.grey[300]!,
       highlightColor: Colors.grey[100]!,
       child: isImageOnly
-          ? Container(height: 110, width: double.infinity, color: Colors.white)
+          ? AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          width: double.infinity,
+          color: Colors.white,
+        ),
+      )
           : Container(
         width: width,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(height: 110, width: double.infinity, color: Colors.white),
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Container(
+                width: double.infinity,
+                color: Colors.white,
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(width: 100, height: 14, color: Colors.white),
+                  Container(
+                    height: 14,
+                    width: double.infinity,
+                    color: Colors.white,
+                  ),
                   const SizedBox(height: 8),
-                  Container(width: 60, height: 12, color: Colors.white),
+                  Container(
+                    height: 12,
+                    width: 60,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 12,
+                    width: 80,
+                    color: Colors.white,
+                  ),
                 ],
               ),
             ),

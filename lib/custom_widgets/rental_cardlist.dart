@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../screens/rent_now_screen.dart';
 import '../utils/calculate_distance.dart';
 import 'rental_card.dart';
 
@@ -95,6 +96,14 @@ class RentalCardList extends StatelessWidget {
               itemLat: lat,
               itemLon: lon,
               distance: item['_distance'],
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RentNowScreen(item: item),
+                  ),
+                );
+              },
             ),
           );
         }).toList(),
@@ -208,6 +217,14 @@ class RentalCardGrid extends StatelessWidget {
           itemLat: lat,
           itemLon: lon,
           distance: item['_distance'],
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RentNowScreen(item: item),
+              ),
+            );
+          },
         );
       },
     );

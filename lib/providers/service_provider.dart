@@ -11,7 +11,7 @@ class ServiceProvider with ChangeNotifier {
   // 1. STATE VARIABLES
   List<Map<String, dynamic>> _myServicesList = [];
   List<Map<String, dynamic>> _allServicesList = [];
-  
+
   String _fullName = "Username";
   String _profession = "Profession";
   String _profileImageUrl = "";
@@ -21,10 +21,6 @@ class ServiceProvider with ChangeNotifier {
   int _experienceYears = 0;
   double _hourlyRate = 0.0;
   Map<String, dynamic> _address = {};
-
-  // New Location Variables
-  double? _latitude;
-  double? _longitude;
 
   bool _isLoading = true;
   bool _isAllProvidersLoading = true;
@@ -39,7 +35,7 @@ class ServiceProvider with ChangeNotifier {
   // 2. GETTERS
   List<Map<String, dynamic>> get myServicesList => _myServicesList;
   List<Map<String, dynamic>> get allServicesList => _allServicesList;
-  
+
   String get fullName => _fullName;
   String get profession => _profession;
   String get profileImageUrl => _profileImageUrl;
@@ -49,8 +45,6 @@ class ServiceProvider with ChangeNotifier {
   int get experienceYears => _experienceYears;
   double get hourlyRate => _hourlyRate;
   Map<String, dynamic> get address => _address;
-  double? get latitude => _latitude;
-  double? get longitude => _longitude;
   bool get isLoading => _isLoading;
   bool get isAllProvidersLoading => _isAllProvidersLoading;
 
@@ -86,7 +80,12 @@ class ServiceProvider with ChangeNotifier {
         .snapshots()
         .listen((snapshot) {
 
-      _myServicesList = snapshot.docs.map((doc) => doc.data()).toList();
+      _myServicesList = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['provider_uid'] = uid; // Inject provider UID
+        data['service_id'] = doc.id;
+        return data;
+      }).toList();
 
       if (_myServicesList.isNotEmpty) {
         var data = _myServicesList.first;
@@ -99,10 +98,6 @@ class ServiceProvider with ChangeNotifier {
         _experienceYears = (data['experience_years'] ?? 0).toInt();
         _hourlyRate = (data['hourly_rate'] ?? 0.0).toDouble();
         _address = data['address'] ?? {};
-        
-        // Fetch Lat/Long from address map
-        _latitude = _address['latitude'] != null ? (_address['latitude'] as num).toDouble() : null;
-        _longitude = _address['longitude'] != null ? (_address['longitude'] as num).toDouble() : null;
       }
 
       _isLoading = false;
@@ -120,14 +115,21 @@ class ServiceProvider with ChangeNotifier {
         .collectionGroup('services')
         .snapshots()
         .listen((snapshot) {
-      
-      _allServicesList = snapshot.docs.map((doc) => doc.data()).toList();
+
+      _allServicesList = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        // CRITICAL: Extract the provider's UID from the parent document reference
+        data['provider_uid'] = doc.reference.parent.parent?.id;
+        data['service_id'] = doc.id;
+        return data;
+      }).toList();
+
       _allServicesList.sort((a, b) {
         String nameA = (a['full_name'] ?? '').toString().toLowerCase();
         String nameB = (b['full_name'] ?? '').toString().toLowerCase();
         return nameA.compareTo(nameB);
       });
-      
+
       _isAllProvidersLoading = false;
       notifyListeners();
     }, onError: (error) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../screens/book_now_screen.dart';
 import '../utils/calculate_distance.dart';
 import 'service_provider_card.dart';
 
@@ -23,24 +24,28 @@ class ServiceProviderCardList extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (index) => Padding(
             padding: const EdgeInsets.only(right: 16.0),
-            child: ServiceProviderCardShimmer(width: screenWidth * 0.6),
+            child: SizedBox(
+              width: screenWidth * 0.6,
+              child: const ServiceProviderCardShimmer(),
+            ),
           )),
         ),
       );
     }
 
     final userProvider = Provider.of<UserProvider>(context);
-    
-    // 1. Create a sortable list and calculate distances for each provider
+
     List<Map<String, dynamic>> sortedProviders = providers.map((p) => Map<String, dynamic>.from(p)).toList();
 
     for (var provider in sortedProviders) {
       final address = provider['address'] as Map<String, dynamic>?;
       final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
       final double? lon = address?['longitude'] != null ? (address!['longitude'] as num).toDouble() : null;
-      
+
       provider['_distance'] = CalculateDistance.calculateDistance(
         userProvider.latitude,
         userProvider.longitude,
@@ -49,26 +54,24 @@ class ServiceProviderCardList extends StatelessWidget {
       );
     }
 
-    // 2. Sort by distance (ascending)
-    // Providers with invalid distance (-1.0) are moved to the end
     sortedProviders.sort((a, b) {
       double distA = a['_distance'] ?? -1.0;
       double distB = b['_distance'] ?? -1.0;
-      
+
       if (distA < 0) return 1;
       if (distB < 0) return -1;
       return distA.compareTo(distB);
     });
 
-    // 3. Limit to top 10 closest providers
     final displayList = sortedProviders.take(10).toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      clipBehavior: Clip.none, // CRITICAL FOR SHADOWS
+      clipBehavior: Clip.none,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: displayList.map((service) {
           final address = service['address'] as Map<String, dynamic>?;
           final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
@@ -76,16 +79,28 @@ class ServiceProviderCardList extends StatelessWidget {
 
           return Padding(
             padding: const EdgeInsets.only(right: 16.0),
-            child: ServiceProviderCard(
+            child: SizedBox(
               width: screenWidth * 0.6,
-              name: service['full_name'] ?? 'No Name',
-              profession: service['profession'] ?? 'Professional',
-              price: 'Rs.${service['hourly_rate'] ?? 0.0}/hr',
-              imageUrl: service['profile_image_url'] ?? '',
-              rating: '4.9',
-              reviewCount: '0',
-              providerLat: lat,
-              providerLon: lon,
+              child: ServiceProviderCard(
+                width: double.infinity,
+                name: service['full_name'] ?? 'No Name',
+                profession: service['profession'] ?? 'Professional',
+                price: 'Rs.${service['hourly_rate'] ?? 0.0}/hr',
+                imageUrl: service['profile_image_url'] ?? '',
+                rating: '4.9',
+                reviewCount: '0',
+                providerLat: lat,
+                providerLon: lon,
+                distance: service['_distance'],
+                onBookPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookNowScreen(providerData: service),
+                    ),
+                  );
+                },
+              ),
             ),
           );
         }).toList(),
@@ -110,10 +125,9 @@ class ServiceProviderCardGrid extends StatelessWidget {
       return GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.75,
+          childAspectRatio: 0.68, // Reduced to give more vertical space
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
         ),
@@ -123,53 +137,73 @@ class ServiceProviderCardGrid extends StatelessWidget {
     }
 
     if (providers.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 100),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.location_off, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                "No providers found in this city",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
+      return const SizedBox.shrink(); // Return empty, parent handles empty state
+    }
+
+    final userProvider = Provider.of<UserProvider>(context);
+
+    List<Map<String, dynamic>> sortedProviders = providers.map((p) => Map<String, dynamic>.from(p)).toList();
+
+    for (var provider in sortedProviders) {
+      final address = provider['address'] as Map<String, dynamic>?;
+      final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
+      final double? lon = address?['longitude'] != null ? (address!['longitude'] as num).toDouble() : null;
+
+      provider['_distance'] = CalculateDistance.calculateDistance(
+        userProvider.latitude,
+        userProvider.longitude,
+        lat,
+        lon,
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-      ),
-      itemCount: providers.length,
-      itemBuilder: (context, index) {
-        final service = providers[index];
+    sortedProviders.sort((a, b) {
+      double distA = a['_distance'] ?? -1.0;
+      double distB = b['_distance'] ?? -1.0;
+
+      if (distA < 0) return 1;
+      if (distB < 0) return -1;
+      return distA.compareTo(distB);
+    });
+
+    // Use Wrap instead of GridView for better flexibility
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      alignment: WrapAlignment.start,
+      children: sortedProviders.map((service) {
         final address = service['address'] as Map<String, dynamic>?;
         final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
         final double? lon = address?['longitude'] != null ? (address!['longitude'] as num).toDouble() : null;
 
-        return ServiceProviderCard(
-          width: double.infinity,
-          name: service['full_name'] ?? 'No Name',
-          profession: service['profession'] ?? 'Professional',
-          price: 'Rs.${service['hourly_rate'] ?? 0.0}/hr',
-          imageUrl: service['profile_image_url'] ?? '',
-          rating: '4.9',
-          reviewCount: '0',
-          providerLat: lat,
-          providerLon: lon,
+        // Calculate width based on screen size
+        final screenWidth = MediaQuery.of(context).size.width;
+        final cardWidth = (screenWidth - 48) / 2; // 20 padding on each side + 16 spacing = 48
+
+        return SizedBox(
+          width: cardWidth,
+          child: ServiceProviderCard(
+            width: double.infinity,
+            name: service['full_name'] ?? 'No Name',
+            profession: service['profession'] ?? 'Professional',
+            price: 'Rs.${service['hourly_rate'] ?? 0.0}/hr',
+            imageUrl: service['profile_image_url'] ?? '',
+            rating: '4.9',
+            reviewCount: '0',
+            providerLat: lat,
+            providerLon: lon,
+            distance: service['_distance'],
+            onBookPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BookNowScreen(providerData: service),
+                ),
+              );
+            },
+          ),
         );
-      },
+      }).toList(),
     );
   }
 }

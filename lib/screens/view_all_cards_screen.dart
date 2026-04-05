@@ -18,6 +18,7 @@ class ViewAllCardsScreen extends StatefulWidget {
 
 class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
   String _selectedCity = 'Mumbai';
+  final ScrollController _scrollController = ScrollController();
 
   void _openCitySelection() async {
     final result = await Navigator.push(
@@ -35,6 +36,12 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final serviceProvider = context.watch<ServiceProvider>();
     final userProvider = context.watch<UserProvider>();
@@ -42,10 +49,10 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
     // 1. Filter providers based on the selected city
     List<Map<String, dynamic>> filteredProviders = serviceProvider.allServicesList
         .where((service) {
-          final address = service['address'] as Map<String, dynamic>?;
-          final city = address?['city']?.toString() ?? '';
-          return city.toLowerCase() == _selectedCity.toLowerCase();
-        })
+      final address = service['address'] as Map<String, dynamic>?;
+      final city = address?['city']?.toString() ?? '';
+      return city.toLowerCase() == _selectedCity.toLowerCase();
+    })
         .map((p) => Map<String, dynamic>.from(p))
         .toList();
 
@@ -54,7 +61,7 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
       final address = provider['address'] as Map<String, dynamic>?;
       final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
       final double? lon = address?['longitude'] != null ? (address!['longitude'] as num).toDouble() : null;
-      
+
       provider['_distance'] = CalculateDistance.calculateDistance(
         userProvider.latitude,
         userProvider.longitude,
@@ -67,7 +74,7 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
     filteredProviders.sort((a, b) {
       double distA = a['_distance'] ?? -1.0;
       double distB = b['_distance'] ?? -1.0;
-      
+
       if (distA < 0) return 1;
       if (distB < 0) return -1;
       return distA.compareTo(distB);
@@ -85,16 +92,60 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
       ),
       backgroundColor: AppStyles.bgColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              ServiceProviderCardGrid(
-                providers: filteredProviders,
-                isLoading: serviceProvider.isAllProvidersLoading,
+        child: Column(
+          children: [
+            // Use Flexible with constraints to prevent overflow
+            Flexible(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (serviceProvider.isAllProvidersLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  if (filteredProviders.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.location_off,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "No providers found in $_selectedCity",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _openCitySelection,
+                            child: const Text("Change City"),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Use SingleChildScrollView with GridView inside for proper scrolling
+                  return SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(20),
+                    child: ServiceProviderCardGrid(
+                      providers: filteredProviders,
+                      isLoading: false,
+                    ),
+                  );
+                },
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

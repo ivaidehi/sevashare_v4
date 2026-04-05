@@ -195,6 +195,7 @@ class RentalCard extends StatelessWidget {
                             ),
                           ],
                         ),
+
                       ],
                     ),
                   ],

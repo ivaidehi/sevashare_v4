@@ -36,7 +36,7 @@ class _RentalsScreenState extends State<RentalsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 15),
+              // const SizedBox(height: 15),
 
               // ================= SEARCH BAR =================
               Padding(
@@ -45,19 +45,26 @@ class _RentalsScreenState extends State<RentalsScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    // --- ADD BORDER HERE ---
+                    border: Border.all(
+                      color: AppStyles.primaryColor_light,
+                      width: 0.3,
+                    ),
+                    // -----------------------
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 6,
+                        offset: const Offset(0, 3), // Slightly offset to make the border pop
                       ),
                     ],
                   ),
                   child: TextField(
                     decoration: InputDecoration(
                       hintText: 'Search rental items...',
-                      border: InputBorder.none,
+                      border: InputBorder.none, // Keep this none since the Container handles the border
                       prefixIcon: Icon(Icons.search, color: AppStyles.primaryColor),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     ),
                   ),
                 ),
