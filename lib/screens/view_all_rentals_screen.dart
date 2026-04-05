@@ -3,20 +3,21 @@ import 'package:provider/provider.dart';
 import 'package:sevashare_v4/screens/select_city_screen.dart';
 
 import '../custom_widgets/custom_appbar.dart';
-import '../custom_widgets/service_provider_cardlist.dart';
-import '../providers/service_provider.dart';
+import '../custom_widgets/rental_cardlist.dart';
+import '../providers/rentals_provider.dart';
 import '../providers/user_provider.dart';
 import '../styles/appstyles.dart';
 import '../utils/calculate_distance.dart';
 
-class ViewAllCardsScreen extends StatefulWidget {
-  const ViewAllCardsScreen({super.key});
+class ViewAllRentalsScreen extends StatefulWidget {
+  final String? category;
+  const ViewAllRentalsScreen({super.key, this.category});
 
   @override
-  State<ViewAllCardsScreen> createState() => _ViewAllCardsScreenState();
+  State<ViewAllRentalsScreen> createState() => _ViewAllRentalsScreenState();
 }
 
-class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
+class _ViewAllRentalsScreenState extends State<ViewAllRentalsScreen> {
   String _selectedCity = 'Mumbai';
   final ScrollController _scrollController = ScrollController();
 
@@ -43,26 +44,33 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final serviceProvider = context.watch<ServiceProvider>();
+    final rentalsProvider = context.watch<RentalsProvider>();
     final userProvider = context.watch<UserProvider>();
 
-    // 1. Filter providers based on the selected city
-    List<Map<String, dynamic>> filteredProviders = serviceProvider.allServicesList
-        .where((service) {
-      final address = service['address'] as Map<String, dynamic>?;
+    // 1. Filter rentals based on the selected city and optionally by category
+    List<Map<String, dynamic>> filteredRentals = rentalsProvider.allRentalsList
+        .where((item) {
+      final address = item['address'] as Map<String, dynamic>?;
       final city = address?['city']?.toString() ?? '';
-      return city.toLowerCase() == _selectedCity.toLowerCase();
+      bool cityMatch = city.toLowerCase() == _selectedCity.toLowerCase();
+      
+      if (widget.category != null) {
+        final category = item['category']?.toString() ?? '';
+        return cityMatch && category.toLowerCase() == widget.category!.toLowerCase();
+      }
+      
+      return cityMatch;
     })
-        .map((p) => Map<String, dynamic>.from(p))
+        .map((i) => Map<String, dynamic>.from(i))
         .toList();
 
     // 2. Calculate distances and sort
-    for (var provider in filteredProviders) {
-      final address = provider['address'] as Map<String, dynamic>?;
+    for (var item in filteredRentals) {
+      final address = item['address'] as Map<String, dynamic>?;
       final double? lat = address?['latitude'] != null ? (address!['latitude'] as num).toDouble() : null;
       final double? lon = address?['longitude'] != null ? (address!['longitude'] as num).toDouble() : null;
 
-      provider['_distance'] = CalculateDistance.calculateDistance(
+      item['_distance'] = CalculateDistance.calculateDistance(
         userProvider.latitude,
         userProvider.longitude,
         lat,
@@ -71,7 +79,7 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
     }
 
     // Sort by distance (ascending)
-    filteredProviders.sort((a, b) {
+    filteredRentals.sort((a, b) {
       double distA = a['_distance'] ?? -1.0;
       double distB = b['_distance'] ?? -1.0;
 
@@ -82,7 +90,7 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: "All Services",
+        title: widget.category ?? "All Rentals",
         subtitle: _selectedCity,
         onSubtitlePressed: _openCitySelection,
         onBackPressed: () {
@@ -94,17 +102,16 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Use Flexible with constraints to prevent overflow
             Flexible(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  if (serviceProvider.isAllProvidersLoading) {
+                  if (rentalsProvider.isAllRentalsLoading) {
                     return const Center(
                       child: CircularProgressIndicator(),
                     );
                   }
 
-                  if (filteredProviders.isEmpty) {
+                  if (filteredRentals.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -116,7 +123,7 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            "No providers found in $_selectedCity",
+                            "No rentals found${widget.category != null ? " in ${widget.category}" : ""} in $_selectedCity",
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
@@ -132,13 +139,11 @@ class _ViewAllCardsScreenState extends State<ViewAllCardsScreen> {
                     );
                   }
 
-                  // Use SingleChildScrollView with GridView inside for proper scrolling
                   return SingleChildScrollView(
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.all(20),
-                    child: ServiceProviderCardGrid(
-                      providers: filteredProviders,
+                    child: RentalCardGrid(
+                      items: filteredRentals,
                       isLoading: false,
                     ),
                   );

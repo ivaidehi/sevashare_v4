@@ -39,6 +39,23 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
   final TextEditingController _deliveryChargeController =
   TextEditingController();
 
+  String? _selectedCategory;
+  final List<String> _categories = [
+    'Others',
+    'Cars',
+    'Bikes',
+    'Tools',
+    'Electronics',
+    'Furniture',
+    'Appliances',
+    'Laptops & Computers',
+    'Cameras & Lenses',
+    'Musical Instruments',
+    'Camping & Outdoor',
+    'Party & Events',
+    'Clothing & Accessories',
+  ];
+
   // --- Section 2: Ownership Details Controllers ---
   final TextEditingController _ownerNameController = TextEditingController();
   final TextEditingController _contactNoController = TextEditingController();
@@ -136,6 +153,7 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
       _offerDelivery = false;
       _invoiceBillImg = null;
       _rentalItemImages.clear();
+      _selectedCategory = null;
     });
   }
 
@@ -207,11 +225,15 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
         final rentalsProvider = Provider.of<RentalsProvider>(context, listen: false);
         final String rentalItemId = rentalsProvider.generateRentalItemId(currentUser.uid);
 
+        final String finalCategory = _selectedCategory == 'Others'
+            ? _categoryController.text.trim()
+            : _selectedCategory ?? '';
+
         final Map<String, dynamic> rentalData = {
           'rental_item_id': rentalItemId,
           'currentUser_uid': currentUser.uid,
           'item_name': _itemNameController.text.trim(),
-          'category': _categoryController.text.trim(),
+          'category': finalCategory,
           'model_number': _modelNumberController.text.trim(),
           'description': _descController.text.trim(),
           'purchase_year': int.tryParse(_purchaseYearController.text.trim()) ?? 0,
@@ -416,28 +438,61 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: CustomInputField(
-                            controller: _categoryController,
-                            labelText: 'Category',
-                            warning: 'Enter category',
-                            prefixIcon: Icon(Icons.category_outlined,
-                                color: AppStyles.secondaryColor),
-                          ),
+                    // Category Dropdown (Consistent with Add Service Screen)
+                    DropdownButtonFormField<String>(
+                      menuMaxHeight: 300,
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        labelStyle: TextStyle(color: Colors.grey),
+                        labelText: 'Category',
+                        prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppStyles.primaryColor_light),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: CustomInputField(
-                            controller: _modelNumberController,
-                            labelText: 'Model (Optional)',
-                            warning: '',
-                            prefixIcon: Icon(Icons.numbers,
-                                color: AppStyles.secondaryColor),
-                          ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppStyles.primaryColor_light),
                         ),
-                      ],
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppStyles.secondaryColor, width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: _categories.map((String category) {
+                        return DropdownMenuItem<String>(
+                          value: category,
+                          child: Text(category),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCategory = newValue;
+                        });
+                      },
+                      validator: (value) => value == null ? 'Please select a category' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Optional Category Input (if 'Others' is selected)
+                    if (_selectedCategory == 'Others') ...[
+                      CustomInputField(
+                        controller: _categoryController,
+                        labelText: 'Enter Specific Category',
+                        warning: 'Please enter category',
+                        prefixIcon: Icon(Icons.edit_note, color: AppStyles.secondaryColor),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    CustomInputField(
+                      controller: _modelNumberController,
+                      labelText: 'Model (Optional)',
+                      warning: '',
+                      prefixIcon: Icon(Icons.numbers,
+                          color: AppStyles.secondaryColor),
                     ),
                     const SizedBox(height: 16),
 

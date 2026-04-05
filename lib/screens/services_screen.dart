@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sevashare_v4/screens/view_all_cards_screen.dart';
+import 'package:sevashare_v4/screens/view_all_services_screen.dart';
 import 'package:sevashare_v4/screens/select_city_screen.dart';
 import '../custom_widgets/service_provider_cardlist.dart';
 import '../providers/service_provider.dart';
@@ -160,30 +160,13 @@ class _ServicesScreenState extends State<ServicesScreen> {
           if (userProvider.userType == "service_provider") ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'My Services',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppStyles.primaryColor,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to See All
-                    },
-                    child: Text(
-                      'See All',
-                      style: TextStyle(
-                        color: AppStyles.secondaryColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+              child: Text(
+                'My Services',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppStyles.primaryColor,
+                ),
               ),
             ),
 
@@ -202,32 +185,18 @@ class _ServicesScreenState extends State<ServicesScreen> {
               isLoading: false,
             ),
           ],
+          const SizedBox(height: 10),
 
           // 📌 Services Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 25),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Services',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppStyles.primaryColor,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'View All',
-                    style: TextStyle(
-                      color: AppStyles.secondaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              'Services',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppStyles.primaryColor,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -240,34 +209,41 @@ class _ServicesScreenState extends State<ServicesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
                 _buildServiceItem(
+                  icon: Icons.grid_view,
+                  label: 'All',
+                  color: Colors.grey[700]!,
+                  onTap: () => _navigateToViewAll(null),
+                ),
+                const SizedBox(width: 15),
+
+                _buildServiceItem(
                   icon: Icons.plumbing,
                   label: 'Plumbing',
                   color: Colors.blue,
+                  onTap: () => _navigateToViewAll('Plumbing'),
+                ),
+                const SizedBox(width: 15),
+                _buildServiceItem(
+                  icon: Icons.build,
+                  label: 'Carpentry',
+                  color: Colors.red,
+                  onTap: () => _navigateToViewAll('Carpentry'),
                 ),
                 const SizedBox(width: 15),
                 _buildServiceItem(
                   icon: Icons.electrical_services,
                   label: 'Electrical',
                   color: Colors.orange,
+                  onTap: () => _navigateToViewAll('Electrical'),
                 ),
                 const SizedBox(width: 15),
                 _buildServiceItem(
                   icon: Icons.cleaning_services,
                   label: 'Cleaning',
                   color: Colors.green,
+                  onTap: () => _navigateToViewAll('Cleaning'),
                 ),
-                const SizedBox(width: 15),
-                _buildServiceItem(
-                  icon: Icons.drive_eta,
-                  label: 'Moving',
-                  color: Colors.purple,
-                ),
-                const SizedBox(width: 15),
-                _buildServiceItem(
-                  icon: Icons.build,
-                  label: 'Repair',
-                  color: Colors.red,
-                ),
+
               ],
             ),
           ),
@@ -315,6 +291,15 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
           const SizedBox(height: 30),
         ],
+      ),
+    );
+  }
+
+  void _navigateToViewAll(String? category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ViewAllCardsScreen(category: category),
       ),
     );
   }
@@ -373,30 +358,32 @@ class _ServicesScreenState extends State<ServicesScreen> {
     required IconData icon,
     required String label,
     required Color color,
+    required VoidCallback onTap,
   }) {
-    return Column(
-      children: [
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            // border: Border.all(color: color.withOpacity(0.2), width: 1),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(child: Icon(icon, size: 30, color: color)),
           ),
-          child: Center(child: Icon(icon, size: 30, color: color)),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppStyles.primaryColor,
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppStyles.primaryColor,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-
 }

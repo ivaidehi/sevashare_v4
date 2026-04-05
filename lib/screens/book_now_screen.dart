@@ -612,8 +612,9 @@ class _BookNowScreenState extends State<BookNowScreen> {
     // Robustly extract IDs
     String providerUid = data['provider_uid'] ?? '';
     if (providerUid.isEmpty) providerUid = data['uid'] ?? '';
-    if (providerUid.isEmpty)
+    if (providerUid.isEmpty) {
       providerUid = widget.providerData['provider_uid'] ?? '';
+    }
     if (providerUid.isEmpty) providerUid = widget.providerData['uid'] ?? '';
 
     String serviceId = data['service_id'] ?? '';

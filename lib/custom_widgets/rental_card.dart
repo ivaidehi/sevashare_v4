@@ -44,7 +44,10 @@ class RentalCard extends StatelessWidget {
       itemLon,
     );
 
-    final String displayDistance = CalculateDistance.formatDistance(distanceKm);
+    // Conditionally set display distance based on userType
+    final String displayDistance = userProvider.userType == "service_provider"
+        ? "N/A"
+        : CalculateDistance.formatDistance(distanceKm);
 
     return GestureDetector(
       onTap: onTap,

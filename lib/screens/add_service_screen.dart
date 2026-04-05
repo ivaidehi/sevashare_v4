@@ -43,7 +43,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
 
   String? _selectedCategory;
   final List<String> _categories = [
-    'Other',
+    'Others',
     'Plumbing',
     'Electrical',
     'AC Repair & Service',
@@ -409,7 +409,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                       decoration: InputDecoration(
                         labelText: 'Service Category',
                         prefixIcon: Icon(Icons.category_outlined, color: AppStyles.secondaryColor),
-                        labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        labelStyle: TextStyle(color: Colors.grey),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(color: Colors.grey.shade300),

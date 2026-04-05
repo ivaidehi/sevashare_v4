@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sevashare_v4/screens/view_all_rentals_screen.dart';
 import '../custom_widgets/custom_appbar.dart';
 import '../custom_widgets/custom_navbar.dart';
 import '../custom_widgets/rental_cardlist.dart';
@@ -97,9 +98,30 @@ class _RentalsScreenState extends State<RentalsScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    _buildCategoryItem(icon: Icons.home, label: 'Home', color: Colors.blue),
-                    _buildCategoryItem(icon: Icons.build, label: 'Tools', color: Colors.orange),
-                    _buildCategoryItem(icon: Icons.electrical_services, label: 'Electronics', color: Colors.green),
+                    _buildCategoryItem(
+                      icon: Icons.grid_view,
+                      label: 'All',
+                      color: Colors.grey[700]!,
+                      onTap: () => _navigateToViewAllRentals(null),
+                    ),
+                    _buildCategoryItem(
+                      icon: Icons.home,
+                      label: 'Home',
+                      color: Colors.blue,
+                      onTap: () => _navigateToViewAllRentals('Home'),
+                    ),
+                    _buildCategoryItem(
+                      icon: Icons.build,
+                      label: 'Tools',
+                      color: Colors.orange,
+                      onTap: () => _navigateToViewAllRentals('Tools'),
+                    ),
+                    _buildCategoryItem(
+                      icon: Icons.electrical_services,
+                      label: 'Electrical',
+                      color: Colors.green,
+                      onTap: () => _navigateToViewAllRentals('Electrical'),
+                    ),
                   ],
                 ),
               ),
@@ -109,13 +131,28 @@ class _RentalsScreenState extends State<RentalsScreen> {
               // ================= AVAILABLE RENTALS SECTION =================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Available Items',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppStyles.primaryColor,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Available Items',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppStyles.primaryColor,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _navigateToViewAllRentals(null),
+                      child: Text(
+                        'View All',
+                        style: TextStyle(
+                          color: AppStyles.secondaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 10),
@@ -129,6 +166,15 @@ class _RentalsScreenState extends State<RentalsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _navigateToViewAllRentals(String? category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ViewAllRentalsScreen(category: category),
       ),
     );
   }
@@ -224,30 +270,34 @@ class _RentalsScreenState extends State<RentalsScreen> {
     required IconData icon,
     required String label,
     required Color color,
+    required VoidCallback onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 15),
-      child: Column(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 28),
             ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppStyles.primaryColor,
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppStyles.primaryColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
