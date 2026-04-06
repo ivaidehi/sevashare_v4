@@ -197,6 +197,10 @@ class BookingService {
       bookingData['createdAt'] = FieldValue.serverTimestamp();
       bookingData['timestamp'] = FieldValue.serverTimestamp();
 
+      // 🔽 ADDED: Seen tracking fields
+      bookingData['isSeenByProvider'] = false;
+      bookingData['isSeenByUser'] = false;
+
       await docRef.set(bookingData);
       return true;
     } catch (e) { return false; }
@@ -210,12 +214,27 @@ class BookingService {
       await _db.collection('service_bookings').doc(bookingId).update({
         'bookingStatus': 'accepted',
         'acceptedAt': FieldValue.serverTimestamp(),
+        // 🔽 UPDATED: Mark as unseen by user when accepted
+        'isSeenByUser': false,
       });
     } catch (e) { print('Error accepting service booking: $e'); }
   }
 
   // For backward compatibility
   Future<void> acceptBooking(String bookingId) => acceptServiceBooking(bookingId);
+
+  // 📌 Rejection Logic
+  // 🔽 ADDED: Reject booking logic
+  Future<void> rejectBooking(String bookingId) async {
+    try {
+      await _db.collection('service_bookings').doc(bookingId).update({
+        'bookingStatus': 'rejected',
+        'rejectedAt': FieldValue.serverTimestamp(),
+        // 🔽 UPDATED: Mark as unseen by user when rejected
+        'isSeenByUser': false,
+      });
+    } catch (e) { print('Error rejecting service booking: $e'); }
+  }
 
   // 📌 Rental Bookings
   Future<bool> bookRental(Map<String, dynamic> bookingData) async {
@@ -225,6 +244,11 @@ class BookingService {
       bookingData['status'] = 'pending';
       bookingData['createdAt'] = FieldValue.serverTimestamp();
       bookingData['timestamp'] = FieldValue.serverTimestamp();
+
+      // 🔽 ADDED: Seen tracking fields
+      bookingData['isSeenByProvider'] = false;
+      bookingData['isSeenByUser'] = false;
+
       await docRef.set(bookingData);
       return true;
     } catch (e) { return false; }
@@ -238,19 +262,71 @@ class BookingService {
       await _db.collection('rental_bookings').doc(bookingId).update({
         'status': newStatus,
         if (newStatus == 'accepted') 'acceptedAt': FieldValue.serverTimestamp(),
+        // 🔽 UPDATED: Mark as unseen by user when status changes
+        if (newStatus == 'accepted' || newStatus == 'rejected') 'isSeenByUser': false,
       });
     } catch (e) { print('Error updating rental booking status: $e'); }
   }
 
+  // 📌 Mark bookings as seen logic
+  // 🔽 ADDED: Mark notifications as seen by Provider
+  Future<void> markAsSeenByProvider(String bookingId, {bool isRental = false}) async {
+    try {
+      String collection = isRental ? 'rental_bookings' : 'service_bookings';
+      await _db.collection(collection).doc(bookingId).update({
+        'isSeenByProvider': true,
+      });
+    } catch (e) { print('Error marking as seen by provider: $e'); }
+  }
+
+  // 🔽 ADDED: Mark notifications as seen by User
+  Future<void> markAsSeenByUser(String bookingId, {bool isRental = false}) async {
+    try {
+      String collection = isRental ? 'rental_bookings' : 'service_bookings';
+      await _db.collection(collection).doc(bookingId).update({
+        'isSeenByUser': true,
+      });
+    } catch (e) { print('Error marking as seen by user: $e'); }
+  }
+
+  // 🔽 ADDED: Batch update to mark all notifications as seen
+  Future<void> markAllAsSeen(String uid, bool isProvider) async {
+    try {
+      WriteBatch batch = _db.batch();
+
+      // We check both collections because your architecture splits them
+      List<String> collections = ['service_bookings', 'rental_bookings'];
+
+      for (String coll in collections) {
+        Query query = _db.collection(coll);
+        if (isProvider) {
+          String field = coll == 'service_bookings' ? 'providerId' : 'owner_id';
+          query = query.where(field, isEqualTo: uid).where('isSeenByProvider', isEqualTo: false);
+        } else {
+          String field = coll == 'service_bookings' ? 'userUid' : 'renter_id';
+          query = query.where(field, isEqualTo: uid).where('isSeenByUser', isEqualTo: false);
+        }
+
+        final snapshot = await query.get();
+        for (var doc in snapshot.docs) {
+          batch.update(doc.reference, {
+            isProvider ? 'isSeenByProvider' : 'isSeenByUser': true
+          });
+        }
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error marking all as seen: $e');
+    }
+  }
+
   // 📌 Real-time Streams (Merged)
-  
-  // Note: These return a Stream of Lists because we can't merge two different collections into one QuerySnapshot.
-  // We'll return dynamic to satisfy existing StreamBuilder types if possible, but ideally Stream<List<DocumentSnapshot>>.
   Stream<List<DocumentSnapshot>> getBookingsForUser(String userUid) {
     final serviceStream = _db.collection('service_bookings')
         .where('userUid', isEqualTo: userUid)
         .snapshots();
-        
+
     final rentalStream = _db.collection('rental_bookings')
         .where('renter_id', isEqualTo: userUid)
         .snapshots();
@@ -262,7 +338,7 @@ class BookingService {
     final serviceStream = _db.collection('service_bookings')
         .where('providerId', isEqualTo: providerId)
         .snapshots();
-        
+
     final rentalStream = _db.collection('rental_bookings')
         .where('owner_id', isEqualTo: providerId)
         .snapshots();

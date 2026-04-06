@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:sevashare_v4/screens/profile_screen.dart';
+import '../providers/user_provider.dart';
 import '../screens/services_screen.dart';
+import '../services/backend_services.dart';
 import '../styles/appstyles.dart';
 import '../screens/bookings_screen.dart';
 import '../screens/rentals_screen.dart';
@@ -104,6 +107,16 @@ class _CustomNavBarState extends State<CustomNavBar> {
               if (_selectedIndex == index) {
                 _navigatorKeys[index].currentState!.popUntil((route) => route.isFirst);
               }
+
+              // 🔽 ADDED: Mark notifications as seen when switching to Bookings tab
+              if (index == 2) {
+                final userProvider = Provider.of<UserProvider>(context, listen: false);
+                BookingService().markAllAsSeen(
+                    userProvider.uid,
+                    userProvider.userType == 'service_provider'
+                );
+              }
+
               setState(() {
                 _selectedIndex = index;
               });

@@ -22,13 +22,14 @@ class ServiceProviderCardList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Determine responsive card width for horizontal scrolling
-    double cardWidth = screenWidth * 0.65;
-    if (screenWidth > 600) cardWidth = screenWidth * 0.45; // Tablet
-    if (screenWidth > 1200) cardWidth = screenWidth * 0.3; // Desktop
+    // 🔽 UPDATED: Reduced width to ensure at least 2 cards are visible on mobile POV
+    double cardWidth = screenWidth * 0.44; 
+    if (screenWidth > 600) cardWidth = screenWidth * 0.35; // Tablet
+    if (screenWidth > 1200) cardWidth = screenWidth * 0.22; // Desktop
 
     double horizontalPadding = screenWidth * 0.05;
-    double itemSpacing = screenWidth * 0.04;
-    if (itemSpacing > 16.0) itemSpacing = 16.0;
+    double itemSpacing = screenWidth * 0.03; // 🔽 Reduced spacing slightly
+    if (itemSpacing > 12.0) itemSpacing = 12.0;
 
     if (isLoading) {
       return SingleChildScrollView(

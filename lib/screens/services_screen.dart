@@ -1,10 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sevashare_v4/screens/view_all_services_screen.dart';
 import 'package:sevashare_v4/screens/select_city_screen.dart';
+import '../custom_widgets/custom_navbar.dart';
 import '../custom_widgets/service_provider_cardlist.dart';
 import '../providers/service_provider.dart';
 import '../providers/user_provider.dart';
+import '../services/backend_services.dart';
 import '../styles/appstyles.dart';
 import 'add_service_screen.dart';
 
@@ -103,17 +106,77 @@ class _ServicesScreenState extends State<ServicesScreen> {
                         ),
                       ],
                     ),
-                    Container(
-                      width: 55,
-                      height: 55,
-                      decoration: BoxDecoration(
-                        color: AppStyles.primaryColor_light,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.notifications,
-                        color: Colors.white,
-                        size: 24,
+                    GestureDetector(
+                      onTap: () async {
+                        // 🔽 UPDATED: Mark as seen before switching to Bookings tab
+                        await BookingService().markAllAsSeen(
+                            userProvider.uid,
+                            userProvider.userType == 'service_provider'
+                        );
+
+                        if (mounted) {
+                          ChangeTabNotification(2).dispatch(context);
+                        }
+                      },
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 55,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: AppStyles.primaryColor_light,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.notifications,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          // 🔽 ADDED: Red dot indicator logic
+                          StreamBuilder<List<DocumentSnapshot>>(
+                            stream: userProvider.userType == 'service_provider'
+                                ? BookingService().getBookingsForProvider(userProvider.uid)
+                                : BookingService().getBookingsForUser(userProvider.uid),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) return const SizedBox.shrink();
+
+                              final bookings = snapshot.data!;
+                              bool showRedDot = false;
+
+                              if (userProvider.userType == 'service_provider') {
+                                showRedDot = bookings.any((doc) {
+                                  final data = doc.data() as Map<String, dynamic>;
+                                  final status = data['status'] ?? data['bookingStatus'] ?? 'pending';
+                                  return status == 'pending' && (data['isSeenByProvider'] == false);
+                                });
+                              } else {
+                                showRedDot = bookings.any((doc) {
+                                  final data = doc.data() as Map<String, dynamic>;
+                                  final status = data['status'] ?? data['bookingStatus'] ?? 'pending';
+                                  return status == 'accepted' && (data['isSeenByUser'] == false);
+                                });
+                              }
+
+                              if (!showRedDot) return const SizedBox.shrink();
+
+                              return Positioned(
+                                right: 2,
+                                top: 2,
+                                child: Container(
+                                  height: 12,
+                                  width: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],

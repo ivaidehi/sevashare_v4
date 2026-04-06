@@ -6,6 +6,7 @@ import '../providers/user_provider.dart';
 import '../services/backend_services.dart';
 import '../styles/appstyles.dart';
 import '../custom_widgets/custom_appbar.dart';
+import 'book_now_screen.dart'; // Navigation: Import BookNowScreen
 
 class BookingsScreen extends StatefulWidget {
   const BookingsScreen({super.key});
@@ -15,7 +16,8 @@ class BookingsScreen extends StatefulWidget {
 }
 
 class _BookingsScreenState extends State<BookingsScreen> {
-  int _selectedTab = 0; // 0: Pending, 1: Accepted
+  int _selectedTab = 0;
+  String _searchQuery = ''; // UI: Search query state
   final BookingService _bookingService = BookingService();
 
   @override
@@ -27,7 +29,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
     return Scaffold(
       backgroundColor: AppStyles.bgColor,
       appBar: CustomAppBar(
-        title: "Rentals",
+        title: "Bookings",
         onBackPressed: () {
           ChangeTabNotification(0).dispatch(context);
         },
@@ -35,8 +37,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
       ),
       body: Column(
         children: [
-          _buildTabs(),
+          _buildTabs(), // UI : Instagram-style tabs
+          _buildSearchBar(), // UI : Search bar added below tabs
           Expanded(
+            // 🔽 FIX 1: Change QuerySnapshot to List<DocumentSnapshot>
             child: StreamBuilder<List<DocumentSnapshot>>(
               stream: isProvider
                   ? _bookingService.getBookingsForProvider(uid)
@@ -48,10 +52,13 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
                 }
+
+                // 🔽 FIX 2: Use snapshot.data!.isEmpty instead of snapshot.data!.docs.isEmpty
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return _buildEmptyState();
                 }
 
+                // 🔽 FIX 3: Directly use snapshot.data! since it is already a List<DocumentSnapshot>
                 final List<DocumentSnapshot> allBookings = List.from(snapshot.data!);
 
                 // Sorting client-side to ensure real-time responsiveness
@@ -63,12 +70,27 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   return bTime.compareTo(aTime);
                 });
 
+                // UI : Updated filtering logic with Search and Tabs
                 final filteredBookings = allBookings.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final status = data['status'] ?? data['bookingStatus'] ?? 'pending';
-                  if (_selectedTab == 0) return status == 'pending';
-                  if (_selectedTab == 1) return status == 'accepted';
-                  return false;
+
+                  bool matchesTab = false;
+                  if (_selectedTab == 0) matchesTab = (status == 'pending');
+                  else if (_selectedTab == 1) matchesTab = (status == 'accepted');
+                  else if (_selectedTab == 2) matchesTab = (status == 'rejected');
+
+                  if (!matchesTab) return false;
+
+                  if (_searchQuery.isEmpty) return true;
+
+                  final pName = (data['owner_name'] ?? data['providerName'] ?? '').toString().toLowerCase();
+                  final cName = (data['renter_name'] ?? data['userName'] ?? '').toString().toLowerCase();
+                  final sName = (data['item_name'] ?? data['serviceName'] ?? '').toString().toLowerCase();
+
+                  return pName.contains(_searchQuery.toLowerCase()) ||
+                      cName.contains(_searchQuery.toLowerCase()) ||
+                      sName.contains(_searchQuery.toLowerCase());
                 }).toList();
 
                 if (filteredBookings.isEmpty) {
@@ -93,12 +115,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   Widget _buildTabs() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      // UI: Instagram-style horizontal tabs with indicator line
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
+      ),
       child: Row(
         children: [
           _buildTabButton(0, 'Pending'),
-          const SizedBox(width: 10),
           _buildTabButton(1, 'Accepted'),
+          _buildTabButton(2, 'Rejected'),
         ],
       ),
     );
@@ -107,25 +133,48 @@ class _BookingsScreenState extends State<BookingsScreen> {
   Widget _buildTabButton(int index, String title) {
     final isSelected = _selectedTab == index;
     return Expanded(
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => setState(() => _selectedTab = index),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppStyles.primaryColor : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? AppStyles.primaryColor : Colors.grey.shade200),
-            boxShadow: isSelected ? [BoxShadow(color: AppStyles.primaryColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? Colors.black : Colors.transparent,
+                width: 2,
+              ),
+            ),
           ),
           child: Center(
             child: Text(
               title,
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.black : Colors.grey.shade500,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      // UI : Rounded search bar with clean modern UI
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: TextField(
+        onChanged: (value) => setState(() => _searchQuery = value),
+        decoration: InputDecoration(
+          hintText: "Search",
+          prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
         ),
       ),
@@ -151,170 +200,182 @@ class _BookingsScreenState extends State<BookingsScreen> {
     }
 
     final String imageUrl = data['item_image'] ?? data['providerImage'] ?? '';
+    Color statusColor = status == 'accepted' ? Colors.green : (status == 'rejected' ? Colors.red : Colors.orange);
 
-    Color statusColor = status == 'accepted' ? Colors.green : Colors.orange;
-
-    return GestureDetector(
-      onTap: () => _showBookingDetails(context, data, doc.id, isProvider),
+    return InkWell(
+      // Navigation: Tapping card navigates directly to Book Now screen
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookNowScreen(
+              providerData: data['serviceDetails'] ?? data,
+            ),
+          ),
+        );
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, spreadRadius: 2, offset: const Offset(0, 5)),
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
+          // Card Layout Fix: Use mainAxisSize.min to allow card to expand based on content
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(status == 'accepted' ? Icons.check_circle : Icons.pending_actions, size: 14, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        status.toUpperCase(),
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          isProvider ? clientName : providerName,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.star, color: Colors.amber, size: 16),
-                      const Text(" 4.8", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
+                // Profile Image
                 CircleAvatar(
-                  radius: 35,
+                  radius: 30,
                   backgroundColor: Colors.grey.shade100,
                   backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                  child: imageUrl.isEmpty ? Text((isProvider ? clientName : providerName)[0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)) : null,
+                  child: imageUrl.isEmpty ? Text((isProvider ? clientName : providerName)[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
                 ),
-                const SizedBox(width: 15),
+                const SizedBox(width: 12),
+                // Main Info Section
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Icon(data.containsKey('item_name') ? Icons.inventory_2_outlined : Icons.handyman_outlined, size: 16, color: AppStyles.secondaryColor),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              serviceName,
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        isProvider ? clientName : providerName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        maxLines: 1,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_month_outlined, size: 16, color: AppStyles.secondaryColor),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "$date  $time",
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        serviceName,
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        maxLines: 1,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
+                      const SizedBox(height: 6),
+                      // Time Visibility Fix: Use Wrap to ensure Date and Time are both visible even on small screens
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
                         children: [
-                          Icon(Icons.location_on_outlined, size: 16, color: AppStyles.secondaryColor),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "2.5 km away",
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade400),
+                              const SizedBox(width: 4),
+                              Text(
+                                date,
+                                style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          // Time Visibility Fix: Specifically ensured time is visible by placing it in its own flexible row
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.access_time, size: 12, color: Colors.grey.shade400),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  time,
+                                  style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                                  softWrap: true,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
+                // Price and Status Section
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       "Rs.$price",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
-                    if (isProvider && status == 'pending')
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (data.containsKey('status')) {
-                              _bookingService.updateRentalBookingStatus(doc.id, 'accepted');
-                            } else {
-                              _bookingService.acceptBooking(doc.id);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                            minimumSize: const Size(80, 30),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: const Text('Accept', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
                       ),
+                      child: Text(
+                        status.toUpperCase(),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
+            // Accept / Reject Buttons Fix: Horizontally aligned with proper spacing and responsive sizing
+            if (isProvider && status == 'pending')
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _bookingService.rejectBooking(doc.id),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          minimumSize: const Size(0, 36), // Removed hardcoded width for responsiveness
+                        ),
+                        child: const Text('Reject', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (data.containsKey('status')) {
+                            _bookingService.updateRentalBookingStatus(doc.id, 'accepted');
+                          } else {
+                            _bookingService.acceptBooking(doc.id);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
+                          minimumSize: const Size(0, 36), // Removed hardcoded width for responsiveness
+                        ),
+                        child: const Text('Accept', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  void _showBookingDetails(BuildContext context, Map<String, dynamic> data, String bookingId, bool isProvider) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _BookingDetailsPopup(data: data, bookingId: bookingId, isProvider: isProvider),
-    );
-  }
-
   Widget _buildEmptyState() {
+    String message = 'No pending bookings';
+    if (_selectedTab == 1) message = 'No accepted bookings';
+    if (_selectedTab == 2) message = 'No rejected bookings';
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -322,183 +383,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
           Icon(Icons.calendar_today_outlined, size: 80, color: Colors.grey[200]),
           const SizedBox(height: 16),
           Text(
-            _selectedTab == 0 ? 'No pending bookings' : 'No accepted bookings',
+            message,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _BookingDetailsPopup extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final String bookingId;
-  final bool isProvider;
-
-  const _BookingDetailsPopup({required this.data, required this.bookingId, required this.isProvider});
-
-  @override
-  Widget build(BuildContext context) {
-    final String providerName = data['owner_name'] ?? data['providerName'] ?? 'Provider';
-    final String profession = data['category'] ?? data['providerProfession'] ?? 'Service Provider';
-    final String imageUrl = data['item_image'] ?? data['providerImage'] ?? '';
-    final String date = data['booking_date'] ?? data['selectedDate'] ?? '';
-    final String time = data['time_slot'] ?? data['selectedTime'] ?? '';
-
-    double price = 0.0;
-    if (data['price'] != null) {
-      if (data['price'] is num) {
-        price = (data['price'] as num).toDouble();
-      } else if (data['price'] is String) {
-        price = double.tryParse(data['price']) ?? 0.0;
-      }
-    }
-
-    final serviceDetails = data['serviceDetails'] ?? {};
-    final String about = data['description'] ?? serviceDetails['service_description'] ?? 'No description available.';
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 25),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.grey.shade100,
-                        backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                        child: imageUrl.isEmpty ? Icon(Icons.person, size: 40, color: AppStyles.primaryColor) : null,
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(providerName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text(profession, style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.star, color: Colors.amber, size: 18),
-                                const Text(" 4.8 ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                                Text("(156 reviews)", style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatItem("2.5 km", "Distance"),
-                      _buildStatItem("342", "Jobs Done"),
-                      _buildStatItem("Rs.$price", "Price"),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  const Text("About", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Text(about, style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5)),
-                  const SizedBox(height: 30),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade100),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Booking Details", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(data.containsKey('item_name') ? Icons.inventory_2 : Icons.handyman, data['item_name'] ?? data['serviceName'] ?? "Service"),
-                        const SizedBox(height: 12),
-                        _buildDetailRow(Icons.calendar_today, "Date: $date"),
-                        const SizedBox(height: 12),
-                        _buildDetailRow(Icons.schedule, "Time: $time"),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  if (isProvider && (data['status'] == 'pending' || data['bookingStatus'] == 'pending'))
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (data.containsKey('status')) {
-                            BookingService().updateRentalBookingStatus(bookingId, 'accepted');
-                          } else {
-                            BookingService().acceptBooking(bookingId);
-                          }
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text("Accept Booking", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppStyles.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text("Close", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  const SizedBox(height: 30),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppStyles.secondaryColor.withOpacity(0.7)),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text, style: TextStyle(fontSize: 15, color: Colors.grey.shade700))),
-      ],
     );
   }
 }

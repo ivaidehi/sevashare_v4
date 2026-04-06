@@ -64,12 +64,12 @@ class ServiceProviderCard extends StatelessWidget {
     return Container(
       width: width,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12), // 🔽 Reduced radius
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -99,7 +99,7 @@ class ServiceProviderCard extends StatelessWidget {
 
           return Material(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () {
@@ -114,7 +114,7 @@ class ServiceProviderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AspectRatio(
-                    aspectRatio: 16 / 9,
+                    aspectRatio: 1.5, // 🔽 Adjusted ratio for smaller width
                     child: CachedNetworkImage(
                       imageUrl: effectiveImageUrl,
                       width: double.infinity,
@@ -123,12 +123,12 @@ class ServiceProviderCard extends StatelessWidget {
                       errorWidget: (context, url, error) => Container(
                         width: double.infinity,
                         color: Colors.grey[200],
-                        child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                        child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 20),
                       ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8), // 🔽 Reduced padding
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,13 +143,13 @@ class ServiceProviderCard extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12, // 🔽 Reduced font size
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF1E293B),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 2),
                             Flexible(
                               flex: 2,
                               child: currentTotalReviews > 0
@@ -157,21 +157,14 @@ class ServiceProviderCard extends StatelessWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
-                                        const Icon(Icons.star, color: Color(0xFFF59E0B), size: 14),
+                                        const Icon(Icons.star, color: Color(0xFFF59E0B), size: 12), // 🔽 Smaller icon
                                         const SizedBox(width: 2),
                                         Text(
                                           currentAvgRating.toStringAsFixed(1),
                                           style: const TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11, // 🔽 Smaller text
                                             fontWeight: FontWeight.w700,
                                             color: Color(0xFF1E293B),
-                                          ),
-                                        ),
-                                        Flexible(
-                                          child: Text(
-                                            ' ($currentTotalReviews)',
-                                            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],
@@ -180,26 +173,26 @@ class ServiceProviderCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                          style: TextStyle(fontSize: 11, color: Colors.grey[500]), // 🔽 Smaller text
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
                               child: Row(
                                 children: [
-                                  const Icon(Icons.location_on_outlined, size: 14, color: Colors.black),
-                                  const SizedBox(width: 4),
+                                  const Icon(Icons.location_on_outlined, size: 12, color: Colors.black),
+                                  const SizedBox(width: 2),
                                   Expanded(
                                     child: Text(
                                       displayDistance,
-                                      style: const TextStyle(fontSize: 12, color: Colors.black),
+                                      style: const TextStyle(fontSize: 10, color: Colors.black), // 🔽 Smaller text
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -207,12 +200,12 @@ class ServiceProviderCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 2),
                             Flexible(
                               child: Text(
                                 price,
                                 style: const TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12, // 🔽 Smaller text
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF3B82F6),
                                 ),
@@ -222,7 +215,7 @@ class ServiceProviderCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -237,14 +230,15 @@ class ServiceProviderCard extends StatelessWidget {
                               backgroundColor: AppStyles.primaryColor,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              minimumSize: const Size(0, 36),
+                              padding: const EdgeInsets.symmetric(vertical: 6), // 🔽 Reduced padding
+                              minimumSize: const Size(0, 30), // 🔽 Reduced height
+                              elevation: 0,
                             ),
                             child: const Text(
                               'Book',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold), // 🔽 Smaller text
                             ),
                           ),
                         ),
@@ -278,15 +272,15 @@ class ServiceProviderCard extends StatelessWidget {
 
   Widget _buildNewBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // 🔽 Reduced padding
       decoration: BoxDecoration(
         color: const Color(0xFF3B82F6).withOpacity(0.15),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: const Text(
         "New",
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 9, // 🔽 Smaller text
           fontWeight: FontWeight.w700,
           color: Color(0xFF3B82F6),
         ),
@@ -308,41 +302,44 @@ class ServiceProviderCardShimmer extends StatelessWidget {
       highlightColor: Colors.grey[100]!,
       child: isImageOnly
           ? AspectRatio(
-        aspectRatio: 16 / 9,
+        aspectRatio: 1.5,
         child: Container(
           width: double.infinity,
-          color: Colors.white,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       )
           : Container(
         width: width,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             AspectRatio(
-              aspectRatio: 16 / 9,
+              aspectRatio: 1.5,
               child: Container(
                 width: double.infinity,
                 color: Colors.white,
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(height: 14, width: double.infinity, color: Colors.white),
+                  Container(height: 10, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 4),
+                  Container(height: 8, width: 60, color: Colors.white),
+                  const SizedBox(height: 6),
+                  Container(height: 8, width: double.infinity, color: Colors.white),
                   const SizedBox(height: 8),
-                  Container(height: 12, width: 60, color: Colors.white),
-                  const SizedBox(height: 8),
-                  Container(height: 12, width: double.infinity, color: Colors.white),
-                  const SizedBox(height: 12),
-                  Container(height: 36, width: double.infinity, color: Colors.white),
+                  Container(height: 28, width: double.infinity, color: Colors.white),
                 ],
               ),
             ),
