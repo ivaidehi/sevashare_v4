@@ -36,7 +36,7 @@ class _RentNowScreenState extends State<RentNowScreen> {
   String? _selectedDayPart;
   bool _isLoading = false;
   bool _isLoadingSlots = false;
-  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController(); // Controller for delivery address
   final TextEditingController _reviewController = TextEditingController();
   int _userRating = 0;
   bool _isSubmittingReview = false;
@@ -44,11 +44,14 @@ class _RentNowScreenState extends State<RentNowScreen> {
   StreamSubscription? _slotsSubscription;
   final BookingService _bookingService = BookingService();
 
+  // Helper to check if delivery is offered
+  bool get _offerDelivery => widget.item['offer_delivery'] == true;
+
   bool get ready =>
       _selectedDate != null &&
           _selectedSlot != null &&
           !_isLoading &&
-          _descriptionController.text.trim().isNotEmpty;
+          (!_offerDelivery || _addressController.text.trim().isNotEmpty);
 
   final Map<String, List<String>> _groupedSlots = {
     "Morning": [
@@ -77,7 +80,7 @@ class _RentNowScreenState extends State<RentNowScreen> {
   @override
   void dispose() {
     _slotsSubscription?.cancel();
-    _descriptionController.dispose();
+    _addressController.dispose();
     _reviewController.dispose();
     super.dispose();
   }
@@ -142,6 +145,18 @@ class _RentNowScreenState extends State<RentNowScreen> {
     }
   }
 
+  // Formats the provider's address for display/storage
+  String _formatProviderAddress(Map<String, dynamic>? address) {
+    if (address == null) return 'N/A';
+    final parts = [
+      address['house_area'],
+      address['road_landmark'],
+      address['city'],
+      address['pincode'],
+    ].where((part) => part != null && part.toString().isNotEmpty).toList();
+    return parts.join(', ');
+  }
+
   Future<void> _handleRentNow() async {
     if (!ready) return;
 
@@ -172,7 +187,11 @@ class _RentNowScreenState extends State<RentNowScreen> {
       'time_slot': _selectedSlot,
       'price': widget.item['rent_per_day'],
       'status': 'pending',
-      'description': _descriptionController.text.trim(),
+      'description': _offerDelivery ? 'Delivery Requested' : 'Pickup Request',
+      'delivery_option': _offerDelivery ? 'Delivery' : 'Pickup',
+      'booking_address': _offerDelivery
+          ? _addressController.text.trim()
+          : _formatProviderAddress(widget.item['address'] as Map<String, dynamic>?),
       'timestamp': FieldValue.serverTimestamp(),
     };
 
@@ -263,7 +282,10 @@ class _RentNowScreenState extends State<RentNowScreen> {
     final double rentPerDay = (widget.item['rent_per_day'] ?? 0.0).toDouble();
     final String owner = widget.item['owner_name'] ?? 'Unknown';
     final String description = widget.item['description'] ?? 'No description provided.';
-    
+    final double securityDeposit = (widget.item['security_deposit'] ?? 0.0).toDouble();
+    final double deliveryCharge = _offerDelivery ? (widget.item['delivery_charge'] ?? 0.0).toDouble() : 0.0;
+    final double totalAmount = rentPerDay + securityDeposit + deliveryCharge;
+
     final userProvider = Provider.of<UserProvider>(context);
     final String itemId = widget.item['rental_item_id'] ?? '';
 
@@ -320,7 +342,106 @@ class _RentNowScreenState extends State<RentNowScreen> {
                         ),
                         const SizedBox(height: 24),
                         _buildRentalDetailsBox(owner, category),
-                        const SizedBox(height: 24),
+
+                        const SizedBox(height: 20),
+
+                        // IF Offer Delivery is True: CONDITIONAL RENDERING: Delivery Address
+                        if (_offerDelivery) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppStyles.primaryColor_light.withOpacity(0.1)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline, color: AppStyles.secondaryColor, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    "This owner is offering delivery with delivery charges",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                      color: AppStyles.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSectionTitle('Your delivery address'),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _addressController,
+                            maxLines: 3,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: "Enter your full address for delivery (Required)",
+                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: AppStyles.primaryColor),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // IF Offer Delivery is False: Show Provider's Pickup Address
+                        if (!_offerDelivery) ...[
+                          // const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppStyles.primaryColor_light.withOpacity(0.1)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.location_on, color: AppStyles.primaryColor, size: 18),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      "Pickup Address:",
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 26),
+                                  child: Text(
+                                    _formatProviderAddress(widget.item['address'] as Map<String, dynamic>?),
+                                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // _formatProviderAddress(widget.item['address'] as Map<String, dynamic>?),
+                        // const SizedBox(height: 24),
+
+                        // const SizedBox(height: 24),
                         _buildSectionTitle('Select Date'),
                         _buildDatePicker(),
                         if (_selectedDate != null) ...[
@@ -339,32 +460,7 @@ class _RentNowScreenState extends State<RentNowScreen> {
                           ],
                         ],
                         const SizedBox(height: 24),
-                        _buildSectionTitle('Description / Purpose'),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _descriptionController,
-                          maxLines: 3,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: "Enter the purpose of renting (Required)",
-                            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: AppStyles.primaryColor),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
+
                         _buildReviewsSection(),
                         const SizedBox(height: 24),
                         _buildWriteReviewSection(),
@@ -375,7 +471,7 @@ class _RentNowScreenState extends State<RentNowScreen> {
               ),
             ),
           ),
-          // Fixed Rent Now Button at Bottom
+          // Fixed Rent Now Button and Price Summary at Bottom
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -390,32 +486,76 @@ class _RentNowScreenState extends State<RentNowScreen> {
             ),
             child: SafeArea(
               top: false,
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: ready ? _handleRentNow : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppStyles.primaryColor,
-                    disabledBackgroundColor: Colors.grey[300],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Conditional Visibility based on Rent Now button's enabled state (ready)
+                  if (ready) ...[
+                    _buildPriceRow("Per Day Rate (Rs)", rentPerDay),
+                    if (_offerDelivery) _buildPriceRow("Delivery Charges", deliveryCharge),
+                    _buildPriceRow("Security Deposit", securityDeposit),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(height: 1),
                     ),
-                  )
-                      : const Text(
-                    'Rent Now',
-                    style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                    _buildPriceRow("Total Amount", totalAmount, isTotal: true),
+                    const SizedBox(height: 16),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: ready ? _handleRentNow : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppStyles.primaryColor,
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                          : const Text(
+                        'Rent Now',
+                        style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, double price, {bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isTotal ? 16 : 14,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: isTotal ? Colors.black : Colors.grey[700],
+            ),
+          ),
+          Text(
+            "Rs. ${price.toStringAsFixed(2)}",
+            style: TextStyle(
+              fontSize: isTotal ? 16 : 14,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: isTotal ? AppStyles.primaryColor : Colors.black,
             ),
           ),
         ],

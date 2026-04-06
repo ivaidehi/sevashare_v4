@@ -517,24 +517,24 @@ class _AddRentalItemScreenState extends State<AddRentalItemScreen> {
                     // Pricing Row
                     Row(
                       children: [
-                        Expanded(
-                          child: CustomInputField(
-                            controller: _rentPerHourController,
-                            labelText: 'Rent /Hr',
-                            warning: 'Required',
-                            keyboardType: TextInputType.number,
-                            prefixIcon: Icon(Icons.timer_outlined,
-                                color: AppStyles.secondaryColor),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
+                        // Expanded(
+                        //   child: CustomInputField(
+                        //     controller: _rentPerHourController,
+                        //     labelText: 'Rent /Hr',
+                        //     warning: 'Required',
+                        //     keyboardType: TextInputType.number,
+                        //     prefixIcon: Icon(Icons.timer_outlined,
+                        //         color: AppStyles.secondaryColor),
+                        //   ),
+                        // ),
+                        // const SizedBox(width: 16),
                         Expanded(
                           child: CustomInputField(
                             controller: _rentPerDayController,
                             labelText: 'Rent /Day',
                             warning: 'Required',
                             keyboardType: TextInputType.number,
-                            prefixIcon: Icon(Icons.today_outlined,
+                            prefixIcon: Icon(Icons.currency_rupee,
                                 color: AppStyles.secondaryColor),
                           ),
                         ),

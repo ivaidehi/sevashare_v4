@@ -27,3 +27,82 @@
                       // //   title: 'Location',
                       // //   value: 'San Francisco, CA',
                       // // ),
+
+
+
+
+                                            // CONDITIONAL RENDERING: Delivery Address
+                                              if (_offerDelivery) ...[
+                                                _buildSectionTitle('Your delivery address'),
+                                                const SizedBox(height: 12),
+                                                Container(
+                                                  width: double.infinity,
+                                                  padding: const EdgeInsets.all(12),
+                                                  decoration: BoxDecoration(
+                                                    color: AppStyles.primaryColor.withOpacity(0.05),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(color: AppStyles.primaryColor.withOpacity(0.2)),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(Icons.info_outline, color: AppStyles.primaryColor, size: 20),
+                                                      const SizedBox(width: 10),
+                                                      const Expanded(
+                                                        child: Text(
+                                                          "This owner is offering delivery with delivery charges",
+                                                          style: TextStyle(
+                                                            fontWeight: FontWeight.w500,
+                                                            fontSize: 13,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                CustomInputField(
+                                                  controller: _addressController,
+                                                  labelText: "Full delivery address",
+                                                  warning: "Address is required",
+                                                  maxlines: 3,
+                                                  prefixIcon: Icon(Icons.home_outlined, color: AppStyles.primaryColor),
+                                                ),
+                                                const SizedBox(height: 24),
+                                              ],
+
+                                              // IF Delivery is DISABLED: Show Provider's Pickup Address
+                                              if (!_offerDelivery) ...[
+                                                const SizedBox(height: 12),
+                                                Container(
+                                                  width: double.infinity,
+                                                  padding: const EdgeInsets.all(12),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blue.withOpacity(0.05),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          Icon(Icons.location_on, color: AppStyles.primaryColor, size: 18),
+                                                          const SizedBox(width: 8),
+                                                          const Text(
+                                                            "Pickup Address:",
+                                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(left: 26),
+                                                        child: Text(
+                                                          _formatProviderAddress(widget.item['address'] as Map<String, dynamic>?),
+                                                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],

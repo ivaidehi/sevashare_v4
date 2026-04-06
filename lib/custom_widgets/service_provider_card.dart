@@ -167,6 +167,13 @@ class ServiceProviderCard extends StatelessWidget {
                                             color: Color(0xFF1E293B),
                                           ),
                                         ),
+                                        Flexible(
+                                          child: Text(
+                                            ' ($currentTotalReviews)',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
                                       ],
                                     )
                                   : _buildNewBadge(),
