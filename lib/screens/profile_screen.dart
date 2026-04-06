@@ -4,6 +4,7 @@ import 'package:sevashare_v4/providers/service_provider.dart';
 import 'package:sevashare_v4/providers/user_provider.dart';
 import 'package:sevashare_v4/screens/add_rentals_screen.dart';
 import 'package:sevashare_v4/screens/add_service_screen.dart';
+import 'package:sevashare_v4/screens/saved_screen.dart';
 
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
@@ -400,6 +401,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
 
+                      _buildProfileItem(
+                        icon: Icons.bookmark_border_rounded,
+                        title: 'Saved ',
+                        suffixIcon: Icons.arrow_forward_ios,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SavedScreen(),
+                            ),
+                          );
+                        },
+                      ),
                       _buildProfileItem(
                         icon: Icons.light_mode_outlined,
                         title: 'Appearance',

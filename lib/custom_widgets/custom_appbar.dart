@@ -8,7 +8,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onSubtitlePressed; // New parameter for subtitle click
   final VoidCallback? onMenuPressed;
   final IconData? actionIcon;
+  final Widget? actionWidget; // New parameter for custom widget in actions
   final Color? appBarColor;
+  final Color? titleColor;
+  final Color? actionIconColor;
+  final Color? backButtonColor;
 
   const CustomAppBar({
     super.key,
@@ -18,7 +22,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onBackPressed,
     this.onMenuPressed,
     this.actionIcon,
-    this.appBarColor,
+    this.actionWidget, // Initialize new parameter
+    this.appBarColor, this.titleColor, this.actionIconColor, this.backButtonColor,
   });
 
   @override
@@ -36,7 +41,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: onBackPressed,
-          color: AppStyles.primaryColor,
+          color: backButtonColor ?? AppStyles.primaryColor,
         ),
       ),
 
@@ -52,7 +57,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
-                color: AppStyles.primaryColor,
+                color: titleColor ?? AppStyles.primaryColor,
               ),
             ),
             if (subtitle != null && subtitle!.isNotEmpty)
@@ -86,11 +91,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 14, top: 15),
-          child: IconButton(
+          child: actionWidget ?? IconButton(
             icon: Icon(
               actionIcon ?? Icons.menu_rounded,
               size: 28,
-              color: AppStyles.primaryColor,
+              color:  actionIconColor ?? AppStyles.primaryColor,
             ),
             onPressed: onMenuPressed ?? () {
               Scaffold.of(context).openEndDrawer();
@@ -102,5 +107,5 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(90.0);
+  Size get preferredSize => const Size.fromHeight(75.0);
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../custom_widgets/custom_appbar.dart';
+import '../custom_widgets/custom_navbar.dart';
 import '../providers/user_provider.dart';
 import '../services/backend_services.dart';
 import '../styles/appstyles.dart';
@@ -307,17 +309,39 @@ class _BookNowScreenState extends State<BookNowScreen> {
     }
 
     final data = _fullServiceData ?? widget.providerData;
+    final userProvider = Provider.of<UserProvider>(context);
+    final String serviceId = data['service_id'] ?? '';
 
     return Scaffold(
       backgroundColor: AppStyles.bgColor,
-      appBar: AppBar(
-        title: const Text(
-          'Confirm Booking',
-          style: TextStyle(fontWeight: FontWeight.bold),
+      appBar: CustomAppBar(
+        titleColor: Colors.white,
+        actionIconColor: Colors.white,
+        backButtonColor: Colors.white,
+        appBarColor: AppStyles.primaryColor,
+        title: "Services",
+        onBackPressed: () {
+          Navigator.pop(context);
+        },
+        actionWidget: StreamBuilder<bool>(
+          stream: _bookingService.isItemSaved(userProvider.uid, serviceId),
+          builder: (context, snapshot) {
+            final isSaved = snapshot.data ?? false;
+            return IconButton(
+              icon: Icon(
+                isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: () => _bookingService.toggleSaveItem(
+                userProvider.uid,
+                serviceId,
+                'service',
+                data,
+              ),
+            );
+          },
         ),
-        backgroundColor: AppStyles.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: Column(
         children: [

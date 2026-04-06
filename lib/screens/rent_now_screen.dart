@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../custom_widgets/custom_appbar.dart';
 import '../providers/rentals_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/backend_services.dart';
@@ -262,14 +263,40 @@ class _RentNowScreenState extends State<RentNowScreen> {
     final double rentPerDay = (widget.item['rent_per_day'] ?? 0.0).toDouble();
     final String owner = widget.item['owner_name'] ?? 'Unknown';
     final String description = widget.item['description'] ?? 'No description provided.';
+    
+    final userProvider = Provider.of<UserProvider>(context);
+    final String itemId = widget.item['rental_item_id'] ?? '';
 
     return Scaffold(
       backgroundColor: AppStyles.bgColor,
-      appBar: AppBar(
-        title: const Text('Confirm Rental', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppStyles.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: CustomAppBar(
+        titleColor: Colors.white,
+        actionIconColor: Colors.white,
+        backButtonColor: Colors.white,
+        appBarColor: AppStyles.primaryColor,
+        title: "Rentals",
+        onBackPressed: () {
+          Navigator.pop(context);
+        },
+        actionWidget: StreamBuilder<bool>(
+          stream: _bookingService.isItemSaved(userProvider.uid, itemId),
+          builder: (context, snapshot) {
+            final isSaved = snapshot.data ?? false;
+            return IconButton(
+              icon: Icon(
+                isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: () => _bookingService.toggleSaveItem(
+                userProvider.uid,
+                itemId,
+                'rental',
+                widget.item,
+              ),
+            );
+          },
+        ),
       ),
       body: Column(
         children: [
@@ -744,7 +771,7 @@ class _RentNowScreenState extends State<RentNowScreen> {
                 borderSide: BorderSide(color: Colors.grey[200]!),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppStyles.primaryColor),
               ),
               contentPadding: const EdgeInsets.all(12),

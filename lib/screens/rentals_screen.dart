@@ -8,6 +8,7 @@ import '../providers/rentals_provider.dart';
 import '../providers/user_provider.dart';
 import '../styles/appstyles.dart';
 import 'add_rentals_screen.dart';
+import 'profile_screen.dart'; // Navigation: Import ProfileScreen
 
 class RentalsScreen extends StatefulWidget {
   const RentalsScreen({super.key});
@@ -29,7 +30,43 @@ class _RentalsScreenState extends State<RentalsScreen> {
         onBackPressed: () {
           ChangeTabNotification(0).dispatch(context);
         },
-        actionIcon: Icons.bookmark_border_rounded,
+        actionWidget: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            );
+          },
+          child: Container(
+            width: 33,
+            height: 33,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppStyles.primaryColor,
+              // border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                userProvider.username.isNotEmpty
+                    ? userProvider.username.substring(0, 1).toUpperCase()
+                    : 'U',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       backgroundColor: AppStyles.bgColor,
       body: SafeArea(

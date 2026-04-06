@@ -188,6 +188,42 @@ class StoreAllRentalsInfo {
 class BookingService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // 📌 Bookmark / Save Feature
+  Future<void> toggleSaveItem(String userId, String itemId, String type, Map<String, dynamic> itemData) async {
+    final docRef = _db.collection('users').doc(userId).collection('saved_items').doc(itemId);
+    final doc = await docRef.get();
+
+    if (doc.exists) {
+      await docRef.delete();
+    } else {
+      await docRef.set({
+        'itemId': itemId,
+        'type': type,
+        'itemData': itemData,
+        'savedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Stream<bool> isItemSaved(String userId, String itemId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('saved_items')
+        .doc(itemId)
+        .snapshots()
+        .map((doc) => doc.exists);
+  }
+
+  Stream<QuerySnapshot> getSavedItems(String userId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('saved_items')
+        .orderBy('savedAt', descending: true)
+        .snapshots();
+  }
+
   // 📌 Service Bookings
   Future<bool> bookService(Map<String, dynamic> bookingData) async {
     try {
